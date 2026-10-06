@@ -1,0 +1,347 @@
+// Student Super App — Prisma schema
+// Barcha entity'lar foydalanuvchiga (User) bog'langan.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Users & profile
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String?
+  googleId     String?   @unique
+  name         String
+  avatarUrl    String?
+  role         String    @default("STUDENT")
+  emailVerifiedAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  profile           StudentProfile?
+  subjects          Subject[]
+  schedules         Schedule[]
+  tasks             Task[]
+  homeworks         Homework[]
+  notes             Note[]
+  exams             Exam[]
+  events            Event[]
+  expenses          Expense[]
+  budgets           Budget[]
+  goals             Goal[]
+  studySessions     StudySession[]
+  notifications     Notification[]
+  materials         Material[]
+  passwordResets    PasswordResetToken[]
+  attachments       Attachment[]
+  grades            Grade[]
+
+  @@index([email])
+}
+
+model StudentProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  university          String?
+  faculty             String?
+  course              Int?
+  group               String?
+  bio                 String?
+  timezone            String   @default("Asia/Tashkent")
+  language            String   @default("uz")
+  theme               String   @default("system")
+  notificationsEnabled Boolean @default(true)
+  monthlyBudget       Float    @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Academics
+// ---------------------------------------------------------------------------
+
+model Subject {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  teacher   String?
+  color     String   @default("#6366f1")
+  createdAt DateTime @default(now())
+
+  schedules Schedule[]
+  tasks     Task[]
+  homeworks Homework[]
+  notes     Note[]
+  exams     Exam[]
+  materials Material[]
+  sessions  StudySession[]
+
+  @@index([userId])
+}
+
+model Schedule {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  title     String
+  teacher   String?
+  room      String?
+  dayOfWeek Int // 1 = Dushanba ... 7 = Yakshanba
+  startTime String // "09:00"
+  endTime   String // "10:30"
+  color     String   @default("#6366f1")
+  createdAt DateTime @default(now())
+
+  @@index([userId, dayOfWeek])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId   String?
+  subject     Subject?  @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  priority    String    @default("MEDIUM") // LOW | MEDIUM | HIGH
+  status      String    @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED
+  category    String?
+  deadline    DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, deadline])
+}
+
+model Homework {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId   String?
+  subject     Subject?  @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  priority    String    @default("MEDIUM")
+  status      String    @default("PENDING")
+  deadline    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  attachments Attachment[]
+
+  @@index([userId, status])
+  @@index([userId, deadline])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId String?
+  subject   Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  title     String
+  content   String   @default("")
+  tags      String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments Attachment[]
+
+  @@index([userId])
+}
+
+model Exam {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId    String?
+  subject      Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  title        String
+  date         DateTime
+  time         String?
+  room         String?
+  description  String?
+  prepProgress Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  type        String   @default("PERSONAL") // CLASS | HOMEWORK | EXAM | DEADLINE | GOAL | PERSONAL
+  start       DateTime
+  end         DateTime?
+  allDay      Boolean  @default(false)
+  color       String   @default("#6366f1")
+  createdAt   DateTime @default(now())
+
+  @@index([userId, start])
+}
+
+model Material {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId   String?
+  subject     Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  title       String
+  category    String   @default("OTHER") // PROGRAMMING | MATHEMATICS | PHYSICS | ENGLISH | OTHER
+  url         String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  attachments Attachment[]
+
+  @@index([userId, category])
+}
+
+model Attachment {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  url        String
+  type       String?
+  size       Int?
+  homeworkId String?
+  homework   Homework? @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  noteId     String?
+  note       Note?     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  materialId String?
+  material   Material? @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Finance
+// ---------------------------------------------------------------------------
+
+model Expense {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount      Float
+  category    String   @default("OTHER") // FOOD | TRANSPORT | STUDY | INTERNET | SHOPPING | ENTERTAINMENT | OTHER
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model Budget {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month     String // "2026-10"
+  amount    Float
+  createdAt DateTime @default(now())
+
+  @@unique([userId, month])
+}
+
+// ---------------------------------------------------------------------------
+// Goals & productivity
+// ---------------------------------------------------------------------------
+
+model Goal {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  targetDate  DateTime?
+  color       String     @default("#6366f1")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  tasks GoalTask[]
+
+  @@index([userId])
+}
+
+model GoalTask {
+  id        String   @id @default(cuid())
+  goalId    String
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  title     String
+  done      Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([goalId])
+}
+
+model StudySession {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId   String?
+  subject     Subject?  @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  durationMin Int
+  mode        String? // POMODORO_25 | POMODORO_50 | POMODORO_90 | CUSTOM
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, startedAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO | REMINDER | WARNING | SUCCESS
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}
+
+model Grade {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectName String
+  credit      Float    @default(3)
+  grade       String
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
