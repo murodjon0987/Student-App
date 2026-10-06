@@ -1,4 +1,4 @@
-# Student Super App
+# Student App
 
 Studentlar uchun o'qish, vaqt, vazifa, imtihon, xarajat va shaxsiy rivojlanishni
 boshqarish platformasi. Bir platformada barcha kerakli vositalar.

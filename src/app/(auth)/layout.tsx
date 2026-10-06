@@ -13,7 +13,7 @@ export default function AuthLayout({
           <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <GraduationCap className="size-5" />
           </span>
-          <span className="text-sm font-bold">Student Super App</span>
+          <span className="text-sm font-bold">Student App</span>
         </Link>
         <div className="flex flex-1 items-center justify-center py-10">
           <div className="w-full max-w-sm">{children}</div>

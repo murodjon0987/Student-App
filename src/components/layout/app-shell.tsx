@@ -30,10 +30,7 @@ function Logo({ className }: { className?: string }) {
       <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
         <GraduationCap className="size-5" />
       </span>
-      <span className="flex flex-col leading-none">
-        <span className="text-sm font-bold">Student</span>
-        <span className="text-xs text-muted-foreground">Super App</span>
-      </span>
+      <span className="text-sm font-bold">Student App</span>
     </Link>
   );
 }

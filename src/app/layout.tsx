@@ -16,12 +16,12 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Student Super App",
-    template: "%s · Student Super App",
+    default: "Student App",
+    template: "%s · Student App",
   },
   description:
     "Studentlar uchun o'qish, vaqt, vazifa, imtihon, xarajat va shaxsiy rivojlanishni boshqarish platformasi.",
-  applicationName: "Student Super App",
+  applicationName: "Student App",
   appleWebApp: {
     capable: true,
     title: "Student App",
