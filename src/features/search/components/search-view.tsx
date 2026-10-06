@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
+  Bus,
   CalendarDays,
   CheckSquare,
   ClipboardList,
@@ -41,6 +42,7 @@ const SECTIONS: {
   { key: "events", label: "Tadbirlar", icon: CalendarDays },
   { key: "goals", label: "Maqsadlar", icon: Target },
   { key: "subjects", label: "Fanlar", icon: BookOpen },
+  { key: "transit", label: "Transport", icon: Bus },
 ];
 
 export function SearchView({ query, groups }: Props) {

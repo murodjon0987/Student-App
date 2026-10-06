@@ -373,3 +373,86 @@ model ChatMessage {
 
   @@index([chatId, createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// Public transport (Toshkent metro + avtobus)
+// ---------------------------------------------------------------------------
+
+enum TransportMode {
+  METRO
+  BUS
+  TRAM
+  TROLLEYBUS
+}
+
+model TransitStop {
+  id           String        @id @default(cuid())
+  city         String        @default("Tashkent")
+  mode         TransportMode
+  name         String
+  nameUz       String?
+  nameRu       String?
+  nameEn       String?
+  lat          Float
+  lng          Float
+  osmType      String?
+  osmId        String?
+  wikidataId   String?
+  imageUrl     String?
+  imageAuthor  String?
+  imageLicense String?
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  lineStops TransitLineStop[]
+
+  @@unique([osmType, osmId])
+  @@index([city, mode])
+  @@index([name])
+}
+
+model TransitLine {
+  id        String        @id @default(cuid())
+  city      String        @default("Tashkent")
+  mode      TransportMode
+  ref       String
+  name      String
+  nameUz    String?
+  color     String        @default("#6366f1")
+  operator  String?
+  geometry  Json?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  stops TransitLineStop[]
+
+  @@unique([city, mode, ref])
+  @@index([city, mode])
+}
+
+model TransitLineStop {
+  id       String      @id @default(cuid())
+  lineId   String
+  line     TransitLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  stopId   String
+  stop     TransitStop @relation(fields: [stopId], references: [id], onDelete: Cascade)
+  sequence Int
+
+  @@unique([lineId, sequence])
+  @@index([stopId])
+}
+
+model TransitFare {
+  id            String        @id @default(cuid())
+  city          String        @default("Tashkent")
+  mode          TransportMode
+  amount        Float
+  currency      String        @default("UZS")
+  note          String?
+  source        String?
+  effectiveFrom DateTime?
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([city, mode])
+}

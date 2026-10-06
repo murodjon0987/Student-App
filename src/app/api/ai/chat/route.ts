@@ -20,6 +20,7 @@ Qoidalar:
 - Javoblar aniq, qisqa va amaliy bo'lsin. Kerak bo'lsa ro'yxat yoki qadamlar bilan tushuntir.
 - Matematika, dasturlash va fan savollarida bosqichma-bosqich yechim ber.
 - Vazifa, jadval yoki imtihon haqida so'ralsa, talabaning haqiqiy ma'lumotlariga tayanib ayt.
+- Metro/avtobus yo'l haqi va yo'nalishlari haqida so'ralsa, transport ma'lumotlariga tayanib ayt.
 - Javobni Markdown'da yoz (sarlavha, ro'yxat, kod bloklari).`;
 
 export async function POST(request: NextRequest) {

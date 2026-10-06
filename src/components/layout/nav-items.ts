@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bell,
+  Bus,
   CalendarDays,
   CalendarRange,
   Calculator,
@@ -42,6 +43,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/tasks", label: "Todo", icon: CheckSquare, mobile: true },
       { href: "/notes", label: "Eslatmalar", icon: StickyNote },
       { href: "/calendar", label: "Kalendar", icon: CalendarRange },
+      { href: "/transport", label: "Transport", icon: Bus },
     ],
   },
   {

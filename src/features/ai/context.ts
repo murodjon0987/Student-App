@@ -40,6 +40,8 @@ export async function buildStudentContext(userId: string): Promise<string> {
     budget,
     expenses,
     goals,
+    metroLines,
+    transitFares,
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
@@ -88,6 +90,17 @@ export async function buildStudentContext(userId: string): Promise<string> {
       take: MAX_ITEMS,
       include: { tasks: { select: { title: true, done: true } } },
     }),
+    prisma.transitLine.findMany({
+      where: { city: "Tashkent", mode: "METRO" },
+      orderBy: { ref: "asc" },
+      include: {
+        stops: {
+          orderBy: { sequence: "asc" },
+          select: { stop: { select: { name: true } } },
+        },
+      },
+    }),
+    prisma.transitFare.findMany({ where: { city: "Tashkent" } }),
   ]);
 
   const name = user?.name ?? "Student";
@@ -174,6 +187,25 @@ export async function buildStudentContext(userId: string): Promise<string> {
       } bajarildi)${g.targetDate ? ` — ${formatDate(g.targetDate)}` : ""}`
   );
   sections.push(`## Maqsadlar\n${listOrNone(goalLines)}`);
+
+  if (metroLines.length > 0) {
+    const fareLines = transitFares.map(
+      (f) => `- ${f.mode === "METRO" ? "Metro" : "Avtobus"}: ${f.amount} ${f.currency}`
+    );
+    const metroLinesText = metroLines.map((line) => {
+      const names = line.stops.map((s) => s.stop.name);
+      const shown =
+        names.length > 12
+          ? `${names.slice(0, 12).join(" - ")} ... (${names.length} bekat)`
+          : names.join(" - ");
+      return `- ${line.ref} ${line.nameUz ?? line.name}: ${shown}`;
+    });
+    sections.push(
+      `## Toshkent transporti (metro va avtobus)\n${fareLines.join(
+        "\n"
+      )}\nMetro liniyalari:\n${metroLinesText.join("\n")}`
+    );
+  }
 
   return sections.join("\n\n");
 }

@@ -19,6 +19,7 @@ export interface SearchGroups {
   events: SearchResultItem[];
   goals: SearchResultItem[];
   subjects: SearchResultItem[];
+  transit: SearchResultItem[];
 }
 
 const EMPTY_GROUPS: SearchGroups = {
@@ -30,6 +31,7 @@ const EMPTY_GROUPS: SearchGroups = {
   events: [],
   goals: [],
   subjects: [],
+  transit: [],
 };
 
 function snippet(value: string | null | undefined) {
@@ -46,7 +48,7 @@ export async function globalSearch(
 
   const contains = { contains: term, mode: "insensitive" as const };
 
-  const [notes, tasks, homework, exams, materials, events, goals, subjects] =
+  const [notes, tasks, homework, exams, materials, events, goals, subjects, transit] =
     await Promise.all([
       prisma.note.findMany({
         where: {
@@ -104,6 +106,11 @@ export async function globalSearch(
         orderBy: { name: "asc" },
         take: 8,
       }),
+      prisma.transitStop.findMany({
+        where: { name: contains },
+        orderBy: { name: "asc" },
+        take: 8,
+      }),
     ]);
 
   return {
@@ -154,6 +161,12 @@ export async function globalSearch(
       title: subject.name,
       subtitle: subject.teacher ?? "",
       href: "/schedule",
+    })),
+    transit: transit.map((stop) => ({
+      id: stop.id,
+      title: stop.name,
+      subtitle: stop.mode === "METRO" ? "Metro bekati" : "Avtobus bekati",
+      href: `/transport/stop/${stop.id}`,
     })),
   };
 }

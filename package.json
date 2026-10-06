@@ -17,6 +17,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
+    "transport:sync": "tsx scripts/sync-transit.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -48,6 +49,7 @@
     "date-fns": "^4.4.0",
     "framer-motion": "^14.0.0",
     "jose": "^6.2.12",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.52.0",
     "next": "16.3.8",
     "next-themes": "^0.4.6",
@@ -63,6 +65,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
