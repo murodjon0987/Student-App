@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Search,
   Settings,
+  Sparkles,
   StickyNote,
   Target,
   Timer,
@@ -46,6 +47,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "O'qish",
     items: [
+      { href: "/ai", label: "AI yordamchi", icon: Sparkles },
       { href: "/exams", label: "Imtihonlar", icon: GraduationCap },
       { href: "/goals", label: "Maqsadlar", icon: Target },
       { href: "/focus", label: "Focus rejim", icon: Timer, mobile: true },
