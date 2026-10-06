@@ -16,6 +16,8 @@ const GOOGLE_ERRORS: Record<string, string> = {
   google_state: "Google orqali kirish seansi eskirgan. Qaytadan urinib ko'ring.",
   google_token: "Google bilan bog'lanishda xatolik yuz berdi. Qaytadan urinib ko'ring.",
   google_email: "Google hisobingizdan email manzilini olib bo'lmadi.",
+  google_failed:
+    "Google orqali kirishda kutilmagan xatolik. Iltimos, keyinroq qaytadan urinib ko'ring.",
 };
 
 export function LoginForm({
