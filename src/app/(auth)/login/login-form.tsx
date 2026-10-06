@@ -24,10 +24,12 @@ export function LoginForm({
   notice,
   error,
   next,
+  detail,
 }: {
   notice?: string;
   error?: string;
   next?: string;
+  detail?: string;
 }) {
   const [state, action] = useActionState(login, undefined);
   const errorMessage = error ? GOOGLE_ERRORS[error] ?? "Xatolik yuz berdi." : null;
@@ -48,9 +50,14 @@ export function LoginForm({
       )}
 
       {(state?.message || errorMessage) && (
-        <div className="flex items-center gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          <AlertCircle className="size-4 shrink-0" />
-          {state?.message ?? errorMessage}
+        <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <div className="space-y-1">
+            <p>{state?.message ?? errorMessage}</p>
+            {detail && (
+              <p className="break-all text-xs opacity-80">{detail}</p>
+            )}
+          </div>
         </div>
       )}
 

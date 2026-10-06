@@ -13,6 +13,7 @@ export default async function LoginPage({
   const notice = params.reset ? "Parol muvaffaqiyatli yangilandi." : undefined;
   const error = typeof params.error === "string" ? params.error : undefined;
   const next = typeof params.next === "string" ? params.next : undefined;
+  const detail = typeof params.detail === "string" ? params.detail : undefined;
 
-  return <LoginForm notice={notice} error={error} next={next} />;
+  return <LoginForm notice={notice} error={error} next={next} detail={detail} />;
 }

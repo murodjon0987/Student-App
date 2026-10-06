@@ -12,8 +12,12 @@ import {
 
 export async function GET(request: NextRequest) {
   const origin = request.nextUrl.origin;
-  const fail = (reason: string) =>
-    NextResponse.redirect(new URL(`/login?error=${reason}`, origin));
+  const fail = (reason: string, detail?: string) => {
+    const url = new URL("/login", origin);
+    url.searchParams.set("error", reason);
+    if (detail) url.searchParams.set("detail", detail.slice(0, 300));
+    return NextResponse.redirect(url);
+  };
 
   try {
     const client = getGoogleClient();
@@ -53,15 +57,23 @@ export async function GET(request: NextRequest) {
       }),
     });
 
-    if (!tokenResponse.ok) return fail("google_token");
+    if (!tokenResponse.ok) {
+      const text = await tokenResponse.text().catch(() => "");
+      console.error("[google callback] token exchange failed", text);
+      return fail("google_token", text);
+    }
     const tokens = (await tokenResponse.json()) as { id_token?: string };
-    if (!tokens.id_token) return fail("google_token");
+    if (!tokens.id_token) return fail("google_token", "id_token yo'q");
 
     let profile;
     try {
       profile = await verifyGoogleIdToken(tokens.id_token, client.clientId);
-    } catch {
-      return fail("google_token");
+    } catch (error) {
+      console.error("[google callback] id_token verify failed", error);
+      return fail(
+        "google_token",
+        error instanceof Error ? error.message : "id_token tekshirilmadi"
+      );
     }
 
     const email = profile.email?.toLowerCase();
@@ -102,6 +114,9 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("[google callback] error", error);
-    return fail("google_failed");
+    return fail(
+      "google_failed",
+      error instanceof Error ? error.message : "kutilmagan xatolik"
+    );
   }
 }
