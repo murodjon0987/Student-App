@@ -1,11 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Student App">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6366f1"/>
-      <stop offset="1" stop-color="#8b5cf6"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f46e5"/>
+      <stop offset="0.5" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#c026d3"/>
     </linearGradient>
+    <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e6e4ff"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.22" cy="0.14" r="0.95">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.4"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="512" height="512" fill="url(#g)"/>
-  <path fill="#ffffff" d="M256 160 128 218l128 58 102-46v91a14 14 0 0 0 28 0v-98L256 160z"/>
-  <path fill="#ffffff" opacity="0.92" d="M180 254v45c0 21 34 38 76 38s76-17 76-38v-45l-76 34-76-34z"/>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+
+  <g transform="translate(256 256) scale(0.76) translate(-256 -256)">
+    <path d="M404 96l11 33 33 11-33 11-11 33-11-33-33-11 33-11 11-33z" fill="#fde68a"/>
+    <path d="M256 138 88 214l168 76 168-76-168-76z" fill="url(#cap)"/>
+    <path d="M156 256v56c0 27 45 49 100 49s100-22 100-49v-56l-100 45-100-45z" fill="#ffffff" opacity="0.88"/>
+    <path d="M424 214v88" stroke="#fbbf24" stroke-width="17" stroke-linecap="round"/>
+    <circle cx="424" cy="322" r="21" fill="#fbbf24"/>
+  </g>
 </svg>

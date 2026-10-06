@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { GraduationCap, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import { ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+
+import { BrandMark } from "@/components/brand-logo";
 
 export default function AuthLayout({
   children,
@@ -10,9 +12,7 @@ export default function AuthLayout({
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="flex flex-col p-6">
         <Link href="/" className="flex items-center gap-2">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <GraduationCap className="size-5" />
-          </span>
+          <BrandMark className="size-9 rounded-xl shadow-sm" />
           <span className="text-sm font-bold">Student App</span>
         </Link>
         <div className="flex flex-1 items-center justify-center py-10">
@@ -20,10 +20,11 @@ export default function AuthLayout({
         </div>
       </div>
 
-      <div className="relative hidden overflow-hidden bg-primary/95 lg:flex lg:flex-col lg:justify-center lg:p-12">
+      <div className="relative hidden overflow-hidden bg-[linear-gradient(135deg,#4f46e5,#7c3aed,#c026d3)] lg:flex lg:flex-col lg:justify-center lg:p-12">
         <div className="absolute -right-20 -top-20 size-80 rounded-full bg-white/10" />
         <div className="absolute -bottom-24 -left-16 size-72 rounded-full bg-white/10" />
         <div className="relative text-primary-foreground">
+          <BrandMark className="mb-8 size-16 rounded-2xl shadow-lg" />
           <h2 className="text-3xl font-bold leading-tight">
             O'qishingizni bir joyda boshqaring.
           </h2>

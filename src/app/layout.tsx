@@ -14,18 +14,46 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
+
+const siteDescription =
+  "Studentlar uchun o'qish, vaqt, vazifa, imtihon, xarajat va shaxsiy rivojlanishni boshqarish platformasi.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Student App",
-    template: "%s · Student App",
+    template: "%s — Student App",
   },
-  description:
-    "Studentlar uchun o'qish, vaqt, vazifa, imtihon, xarajat va shaxsiy rivojlanishni boshqarish platformasi.",
+  description: siteDescription,
   applicationName: "Student App",
   appleWebApp: {
     capable: true,
     title: "Student App",
     statusBarStyle: "default",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180" }],
+  },
+  openGraph: {
+    type: "website",
+    siteName: "Student App",
+    title: "Student App",
+    description: siteDescription,
+    locale: "uz_UZ",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Student App",
+    description: siteDescription,
   },
 };
 

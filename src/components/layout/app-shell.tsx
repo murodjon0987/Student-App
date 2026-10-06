@@ -3,9 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GraduationCap, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/brand-logo";
 import { NAV_SECTIONS, MOBILE_NAV } from "@/components/layout/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
@@ -27,9 +28,7 @@ export interface AppUser {
 function Logo({ className }: { className?: string }) {
   return (
     <Link href="/dashboard" className={cn("flex items-center gap-2", className)}>
-      <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-        <GraduationCap className="size-5" />
-      </span>
+      <BrandMark className="size-9 rounded-xl shadow-sm" />
       <span className="text-sm font-bold">Student App</span>
     </Link>
   );
