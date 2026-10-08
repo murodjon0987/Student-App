@@ -73,6 +73,25 @@ function CodeBlock({ code, lang }: { code: string; lang: string }) {
   );
 }
 
+function MessageImage({ src, alt }: { src: string; alt: string }) {
+  return (
+    <a
+      href={src}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="my-3 block w-fit"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        className="max-h-[420px] w-full max-w-sm rounded-xl border border-border bg-muted/30 object-contain"
+      />
+    </a>
+  );
+}
+
 function TextBlock({ text }: { text: string }) {
   const blocks: React.ReactNode[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
@@ -106,11 +125,17 @@ function TextBlock({ text }: { text: string }) {
       continue;
     }
 
+    const image = /^!\[([^\]]*)\]\((\S+)\)$/.exec(line.trim());
     const heading = /^(#{1,4})\s+(.*)$/.exec(line);
     const ordered = /^\s*\d+[.)]\s+(.*)$/.exec(line);
     const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
 
-    if (heading) {
+    if (image) {
+      flush();
+      blocks.push(
+        <MessageImage key={`img-${key++}`} src={image[2]} alt={image[1]} />
+      );
+    } else if (heading) {
       flush();
       blocks.push(
         <p key={`h-${key++}`} className="pt-1 font-semibold">

@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { decrypt, getSessionToken } from "@/lib/auth/session";
 import { buildStudentContext } from "@/features/ai/context";
 import { isAiConfigured, streamGemini, type AiMessage } from "@/features/ai/gemini";
+import {
+  generateImage,
+  isImageGenerationConfigured,
+  isImageRequest,
+} from "@/features/ai/image";
 import { chatRequestSchema } from "@/features/ai/schema";
 
 export const runtime = "nodejs";
@@ -21,6 +26,7 @@ Qoidalar:
 - Matematika, dasturlash va fan savollarida bosqichma-bosqich yechim ber.
 - Vazifa, jadval yoki imtihon haqida so'ralsa, talabaning haqiqiy ma'lumotlariga tayanib ayt.
 - Metro/avtobus yo'l haqi va yo'nalishlari haqida so'ralsa, transport ma'lumotlariga tayanib ayt.
+- Rasm chizishni so'rashsa, "men rasm generatsiya qila olmayman" deb aytma. Ilova rasm so'rovlarini alohida rasm generatoriga yo'naltiradi; agar so'rov rasm generatoriga yetib bormagan bo'lsa, foydalanuvchiga chat oynasidagi rasm tugmasidan foydalanishni maslahat ber.
 - Javobni Markdown'da yoz (sarlavha, ro'yxat, kod bloklari).`;
 
 export async function POST(request: NextRequest) {
@@ -45,17 +51,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!isAiConfigured()) {
-    return Response.json(
-      {
-        error:
-          "AI hali sozlanmagan. Vercel'da GEMINI_API_KEY environment variable qo'shing.",
-      },
-      { status: 503 }
-    );
-  }
-
-  const { chatId: inputChatId, message } = parsed.data;
+  const { chatId: inputChatId, message, mode } = parsed.data;
 
   let chatId = inputChatId || null;
   let title = "Yangi suhbat";
@@ -81,6 +77,27 @@ export async function POST(request: NextRequest) {
   await prisma.chatMessage.create({
     data: { chatId, role: "user", content: message },
   });
+
+  const wantsImage = mode === "image" || isImageRequest(message);
+
+  if (wantsImage && isImageGenerationConfigured()) {
+    return streamImageResponse({
+      request,
+      chatId,
+      title,
+      message,
+    });
+  }
+
+  if (!isAiConfigured()) {
+    return Response.json(
+      {
+        error:
+          "AI hali sozlanmagan. Vercel'da GEMINI_API_KEY environment variable qo'shing.",
+      },
+      { status: 503 }
+    );
+  }
 
   const recent = await prisma.chatMessage.findMany({
     where: { chatId },
@@ -141,6 +158,75 @@ export async function POST(request: NextRequest) {
             });
             await prisma.chat.update({
               where: { id: finalChatId },
+              data: { updatedAt: new Date() },
+            });
+          } catch (error) {
+            console.error("[ai/chat] save error", error);
+          }
+        }
+        send({ type: "done" });
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
+function streamImageResponse({
+  request,
+  chatId,
+  title,
+  message,
+}: {
+  request: NextRequest;
+  chatId: string;
+  title: string;
+  message: string;
+}) {
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (payload: Record<string, unknown>) => {
+        controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
+      };
+
+      send({ type: "meta", chatId, title });
+
+      let full = "";
+      try {
+        const image = await generateImage(message, request.signal);
+        const alt = image.prompt.replace(/[\[\]]/g, "");
+        full = `Mana siz so'ragan rasm:\n\n![${alt}](${image.url})`;
+        send({ type: "delta", text: full });
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          // foydalanuvchi to'xtatdi
+        } else {
+          console.error("[ai/chat] image error", error);
+          send({
+            type: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Rasm generatsiya qilishda xatolik yuz berdi",
+          });
+        }
+      } finally {
+        if (full.trim()) {
+          try {
+            await prisma.chatMessage.create({
+              data: { chatId, role: "assistant", content: full },
+            });
+            await prisma.chat.update({
+              where: { id: chatId },
               data: { updatedAt: new Date() },
             });
           } catch (error) {

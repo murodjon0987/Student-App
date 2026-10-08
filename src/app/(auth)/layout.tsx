@@ -9,7 +9,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
+    <div className="grid min-h-dvh lg:grid-cols-2">
       <div className="flex flex-col p-6">
         <Link href="/" className="flex items-center gap-2">
           <BrandMark className="size-9 rounded-xl shadow-sm" />

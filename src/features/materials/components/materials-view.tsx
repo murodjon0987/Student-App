@@ -156,7 +156,7 @@ export function MaterialsView({ materials, subjects }: Props) {
                   <span />
                 )}
 
-                <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex items-center gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
                   <Button
                     variant="ghost"
                     size="icon-sm"

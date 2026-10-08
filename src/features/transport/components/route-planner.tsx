@@ -321,9 +321,9 @@ export function RoutePlanner({ stops, fares }: Props) {
                 key={`${leg.lineId}-${index}`}
                 className="rounded-xl border border-border bg-card p-4"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-start gap-2">
                   <span
-                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold text-white"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold text-white"
                     style={{ backgroundColor: leg.color }}
                   >
                     {leg.mode === "METRO" ? (
@@ -333,7 +333,7 @@ export function RoutePlanner({ stops, fares }: Props) {
                     )}
                     {leg.lineRef}
                   </span>
-                  <span className="text-sm font-medium">
+                  <span className="min-w-0 flex-1 text-sm font-medium break-words">
                     {leg.fromStopName} → {leg.toStopName}
                   </span>
                 </div>

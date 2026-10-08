@@ -203,7 +203,7 @@ export function TaskView({ tasks, subjects }: Props) {
                 <button
                   onClick={() => toggle(task)}
                   disabled={pendingId === task.id}
-                  className="mt-0.5 shrink-0"
+                  className="-ml-1.5 mt-0.5 shrink-0 rounded-full p-2"
                   aria-label="Holatni almashtirish"
                 >
                   {pendingId === task.id ? (
@@ -271,7 +271,7 @@ export function TaskView({ tasks, subjects }: Props) {
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
                   <Button
                     variant="ghost"
                     size="icon-sm"

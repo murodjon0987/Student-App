@@ -176,6 +176,7 @@ function GoalCard({
               <Checkbox
                 checked={task.done}
                 disabled={pending === task.id}
+                className="size-5"
                 onCheckedChange={(value) => toggle(task, value === true)}
               />
               <span
@@ -189,7 +190,7 @@ function GoalCard({
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="opacity-0 transition-opacity group-hover:opacity-100"
+                className="opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100"
                 disabled={pending === task.id}
                 onClick={() => removeTask(task)}
               >
@@ -210,8 +211,14 @@ function GoalCard({
             value={newTask}
             onChange={(event) => setNewTask(event.target.value)}
             placeholder="Yangi kichik vazifa..."
+            className="min-w-0 flex-1"
           />
-          <Button type="submit" variant="outline" disabled={adding || !newTask.trim()}>
+          <Button
+            type="submit"
+            variant="outline"
+            className="shrink-0"
+            disabled={adding || !newTask.trim()}
+          >
             {adding ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (

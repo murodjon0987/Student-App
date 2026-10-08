@@ -7,6 +7,7 @@ export const chatRequestSchema = z.object({
     .min(1, { error: "Xabar bo'sh bo'lmasligi kerak" })
     .max(4000, { error: "Xabar juda uzun (maksimal 4000 belgi)" })
     .trim(),
+  mode: z.enum(["chat", "image"]).optional(),
 });
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

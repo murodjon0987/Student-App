@@ -1,21 +1,21 @@
 import { format, formatDistanceToNowStrict, isToday, isTomorrow, isYesterday } from "date-fns";
 
-export function formatCurrency(amount: number, currency = "UZS") {
-  try {
-    return new Intl.NumberFormat("uz-UZ", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `${amount.toLocaleString()} ${currency}`;
-  }
+function groupDigits(value: string) {
+  const negative = value.startsWith("-");
+  const raw = negative ? value.slice(1) : value;
+  const [intPart, fracPart] = raw.split(".");
+  const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const result = fracPart ? `${grouped}.${fracPart}` : grouped;
+  return negative ? `-${result}` : result;
 }
 
 export function formatNumber(value: number, digits = 0) {
-  return new Intl.NumberFormat("uz-UZ", {
-    maximumFractionDigits: digits,
-  }).format(value);
+  if (!Number.isFinite(value)) return "0";
+  return groupDigits(value.toFixed(digits));
+}
+
+export function formatCurrency(amount: number, currency = "UZS") {
+  return `${currency} ${formatNumber(amount, 0)}`;
 }
 
 export function formatDate(value: Date | string, pattern = "d MMM yyyy") {

@@ -111,7 +111,7 @@ export function ChatList({
               )}
 
               {!editing && (
-                <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex shrink-0 items-center opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
                   <Button
                     variant="ghost"
                     size="icon-sm"

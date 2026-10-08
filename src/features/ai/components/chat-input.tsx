@@ -1,19 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUp, Square } from "lucide-react";
+import { ArrowUp, ImagePlus, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  onSend: (text: string) => void;
+  onSend: (text: string, options?: { image?: boolean }) => void;
   onStop: () => void;
   streaming: boolean;
 }
 
 export function ChatInput({ onSend, onStop, streaming }: Props) {
   const [value, setValue] = React.useState("");
+  const [imageMode, setImageMode] = React.useState(false);
   const ref = React.useRef<HTMLTextAreaElement>(null);
 
   React.useEffect(() => {
@@ -26,13 +27,32 @@ export function ChatInput({ onSend, onStop, streaming }: Props) {
   function submit() {
     const text = value.trim();
     if (!text || streaming) return;
-    onSend(text);
+    onSend(text, { image: imageMode });
     setValue("");
   }
 
   return (
     <div className="border-t border-border bg-background/80 p-3 backdrop-blur sm:p-4">
-      <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-input bg-card p-2 shadow-sm focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30">
+      <div
+        className={cn(
+          "mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring/30",
+          imageMode
+            ? "border-primary/60 focus-within:border-primary"
+            : "border-input focus-within:border-ring"
+        )}
+      >
+        <Button
+          type="button"
+          size="icon"
+          variant={imageMode ? "default" : "ghost"}
+          onClick={() => setImageMode((v) => !v)}
+          aria-label="Rasm generatsiyasi"
+          aria-pressed={imageMode}
+          title="Rasm generatsiyasi"
+          className="shrink-0"
+        >
+          <ImagePlus className="size-4" />
+        </Button>
         <textarea
           ref={ref}
           value={value}
@@ -44,7 +64,11 @@ export function ChatInput({ onSend, onStop, streaming }: Props) {
               submit();
             }
           }}
-          placeholder="Savolingizni yozing... (Shift+Enter — yangi qator)"
+          placeholder={
+            imageMode
+              ? "Rasm tavsifini yozing... (masalan: kitob o'qiyotgan mushuk)"
+              : "Savolingizni yozing... (Shift+Enter — yangi qator)"
+          }
           className="max-h-[180px] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
         />
         {streaming ? (

@@ -118,7 +118,7 @@ export function FocusView({ subjects, data }: Props) {
                           variant="ghost"
                           size="icon-sm"
                           aria-label="O'chirish"
-                          className="opacity-0 transition-opacity group-hover:opacity-100"
+                          className="opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100"
                         >
                           <Trash2 className="size-4 text-destructive" />
                         </Button>

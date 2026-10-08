@@ -57,7 +57,7 @@ export function ChatMessage({ message }: { message: UiMessage }) {
           )}
         </div>
         {!empty && (
-          <div className="mt-1 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="mt-1 flex items-center gap-2 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
             <button
               type="button"
               onClick={() => {
@@ -91,7 +91,7 @@ export function WelcomeScreen({
     "Bugungi vazifalarim va muddatlarim nima?",
     "Imtihonga qanday samarali tayyorlanaman?",
     "Dars jadvalimni tahlil qilib, bo'sh vaqtimni ayt",
-    "Bu oy budjetim qanday ketdi?",
+    "Quyoshli kunda kitob o'qiyotgan mushuk rasmini chiz",
   ];
 
   return (
@@ -104,7 +104,8 @@ export function WelcomeScreen({
       </h2>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">
         Jadval, vazifa, imtihon, budjet va o'qish bo'yicha savollaringizga
-        ma'lumotlaringizga qarab javob beraman.
+        ma'lumotlaringizga qarab javob beraman. Rasm ham chizib bera olaman —
+        shunchaki "rasmini chiz" deb yozing yoki pastdagi rasm tugmasini yoqing.
       </p>
       <div className="mt-6 grid w-full max-w-lg grid-cols-1 gap-2 sm:grid-cols-2">
         {prompts.map((prompt) => (

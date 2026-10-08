@@ -147,7 +147,7 @@ export function SettingsView({ email, profile }: Props) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="inline-flex gap-1 rounded-lg border border-border p-1">
+            <div className="flex w-full flex-wrap gap-1 rounded-lg border border-border p-1 sm:inline-flex sm:w-auto">
               {THEME_OPTIONS.map((option) => {
                 const Icon = option.icon;
                 const active = theme === option.value;
@@ -157,7 +157,7 @@ export function SettingsView({ email, profile }: Props) {
                     type="button"
                     size="sm"
                     variant={active ? "secondary" : "ghost"}
-                    className={cn(active && "shadow-sm")}
+                    className={cn("flex-1 sm:flex-none", active && "shadow-sm")}
                     onClick={() => {
                       setValue("theme", option.value, { shouldDirty: true });
                       setTheme(option.value);

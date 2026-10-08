@@ -110,9 +110,11 @@ export function ProfileView({ user, profile }: Props) {
                   {initials(name || user.name) || "?"}
                 </AvatarFallback>
               </Avatar>
-              <div className="space-y-1.5">
+              <div className="min-w-0 space-y-1.5">
                 <p className="text-sm font-medium">{name || user.name}</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {user.email}
+                </p>
               </div>
             </div>
 

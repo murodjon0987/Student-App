@@ -78,7 +78,7 @@ export function AiChatView({
     setLoadingMessages(false);
   }
 
-  async function send(text: string) {
+  async function send(text: string, options?: { image?: boolean }) {
     if (streaming) return;
 
     const wasNew = !activeId;
@@ -100,7 +100,11 @@ export function AiChatView({
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chatId: activeId, message: text }),
+        body: JSON.stringify({
+          chatId: activeId,
+          message: text,
+          mode: options?.image ? "image" : undefined,
+        }),
         signal: controller.signal,
       });
 
@@ -221,7 +225,7 @@ export function AiChatView({
   );
 
   return (
-    <div className="flex h-[calc(100dvh-8.5rem)] flex-col gap-4">
+    <div className="flex h-[calc(100dvh-10.5rem)] flex-col gap-4 sm:h-[calc(100dvh-11rem)] lg:h-[calc(100dvh-8.5rem)]">
       <PageHeader
         title="AI yordamchi"
         description="Ma'lumotlaringizga tayanadigan shaxsiy o'quv assistenti."

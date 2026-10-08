@@ -145,6 +145,8 @@ export function CalendarView({ data }: Props) {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
         <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="overflow-x-auto">
+          <div className="min-w-[640px] sm:min-w-0">
           <div className="grid grid-cols-7 border-b border-border">
             {WEEKDAYS_UZ.map((day) => (
               <div
@@ -225,6 +227,8 @@ export function CalendarView({ data }: Props) {
               );
             })}
           </div>
+          </div>
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -292,7 +296,7 @@ export function CalendarView({ data }: Props) {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="opacity-0 transition-opacity group-hover:opacity-100"
+                            className="opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100"
                             aria-label="O'chirish"
                           >
                             <Trash2 className="size-4 text-destructive" />

@@ -142,7 +142,7 @@ export function GoalFormDialog({ open, onOpenChange, initial }: Props) {
                   type="button"
                   onClick={() => setValue("color", value)}
                   className={cn(
-                    "size-7 rounded-full ring-offset-2 ring-offset-background transition-all",
+                    "size-9 rounded-full ring-offset-2 ring-offset-background transition-all",
                     color === value && "ring-2 ring-ring"
                   )}
                   style={{ backgroundColor: value }}

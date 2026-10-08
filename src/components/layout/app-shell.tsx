@@ -25,11 +25,19 @@ export interface AppUser {
   unreadCount: number;
 }
 
-function Logo({ className }: { className?: string }) {
+function Logo({
+  className,
+  compact,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   return (
     <Link href="/dashboard" className={cn("flex items-center gap-2", className)}>
-      <BrandMark className="size-9 rounded-xl shadow-sm" />
-      <span className="text-sm font-bold">Student App</span>
+      <BrandMark className="size-9 shrink-0 rounded-xl shadow-sm" />
+      <span className={cn("text-sm font-bold", compact && "hidden sm:inline")}>
+        Student App
+      </span>
     </Link>
   );
 }
@@ -125,7 +133,7 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-dvh bg-background">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-card/50 px-4 py-5 lg:flex">
         <Logo />
@@ -142,7 +150,7 @@ export function AppShell({
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-border bg-card px-4 py-5">
+          <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-72 flex-col border-r border-border bg-card px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))]">
             <div className="flex items-center justify-between">
               <Logo />
               <Button
@@ -162,7 +170,7 @@ export function AppShell({
       )}
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-md">
+        <header className="sticky top-0 z-30 flex min-h-14 items-center gap-3 border-b border-border bg-background/80 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-md">
           <Button
             variant="ghost"
             size="icon"
@@ -173,8 +181,8 @@ export function AppShell({
             <Menu className="size-5" />
           </Button>
 
-          <div className="lg:hidden">
-            <Logo />
+          <div className="min-w-0 lg:hidden">
+            <Logo compact />
           </div>
 
           <div className="ml-auto flex items-center gap-1">

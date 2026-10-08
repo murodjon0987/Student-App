@@ -26,19 +26,25 @@ export function NextClassCountdown({
   startTime: string;
   room?: string | null;
 }) {
-  const [state, setState] = React.useState(() => {
+  const [state, setState] = React.useState<{
+    target: Date;
+    total: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  } | null>(null);
+
+  React.useEffect(() => {
     const [h, m] = startTime.split(":").map(Number);
     const target = new Date();
     target.setHours(h, m, 0, 0);
-    return { target, ...diff(target) };
-  });
+    setState({ target, ...diff(target) });
 
-  React.useEffect(() => {
     const timer = setInterval(() => {
-      setState((prev) => ({ ...prev, ...diff(prev.target) }));
+      setState((prev) => (prev ? { ...prev, ...diff(prev.target) } : prev));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [startTime]);
 
   return (
     <div className="rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 to-transparent p-4">
@@ -51,11 +57,13 @@ export function NextClassCountdown({
         {room ? ` · ${room}` : ""}
       </p>
       <div className="mt-3 flex items-center gap-2 font-mono text-2xl font-bold tabular-nums">
-        <span>{pad(state.hours)}</span>
+        <span>{state ? pad(state.hours) : "--"}</span>
         <span className="text-muted-foreground">:</span>
-        <span>{pad(state.minutes)}</span>
+        <span>{state ? pad(state.minutes) : "--"}</span>
         <span className="text-muted-foreground">:</span>
-        <span className="text-primary">{pad(state.seconds)}</span>
+        <span className="text-primary">
+          {state ? pad(state.seconds) : "--"}
+        </span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">darsgacha qoldi</p>
     </div>
@@ -69,12 +77,23 @@ export function DeadlineCountdown({
   target: Date | string;
   className?: string;
 }) {
-  const [state, setState] = React.useState(() => diff(new Date(target)));
+  const [state, setState] = React.useState<{
+    total: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  } | null>(null);
 
   React.useEffect(() => {
-    const timer = setInterval(() => setState(diff(new Date(target))), 1000);
+    const tick = () => setState(diff(new Date(target)));
+    tick();
+    const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
   }, [target]);
+
+  if (!state) {
+    return <span className={className}>--:--:--</span>;
+  }
 
   const overdue = state.total <= 0;
   if (overdue) {

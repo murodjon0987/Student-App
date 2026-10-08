@@ -150,7 +150,7 @@ export function NotesView({ notes, subjects }: Props) {
               <div className="flex items-start justify-between gap-2">
                 <h3 className="min-w-0 flex-1 font-medium">{note.title}</h3>
                 <div
-                  className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="shrink-0 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <ConfirmDialog

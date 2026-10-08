@@ -145,32 +145,32 @@ export function GpaView({ grades }: Props) {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <div className="flex items-center gap-3 border-b border-border px-5 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:gap-3 sm:px-5">
               <span className="flex-1">Fan</span>
-              <span className="w-20 text-center">Kredit</span>
-              <span className="w-16 text-center">Baho</span>
-              <span className="w-16" />
+              <span className="w-14 text-center sm:w-20">Kredit</span>
+              <span className="w-12 text-center sm:w-16">Baho</span>
+              <span className="w-[76px] sm:w-20" />
             </div>
             <div className="divide-y divide-border">
               {grades.map((grade) => (
                 <div
                   key={grade.id}
-                  className="group flex items-center gap-3 px-5 py-3"
+                  className="group flex items-center gap-2 px-4 py-3 sm:gap-3 sm:px-5"
                 >
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
                     {grade.subjectName}
                   </span>
-                  <span className="w-20 text-center text-sm tabular-nums text-muted-foreground">
+                  <span className="w-14 text-center text-sm tabular-nums text-muted-foreground sm:w-20">
                     {formatNumber(grade.credit, 1)}
                   </span>
-                  <span className="flex w-16 justify-center">
+                  <span className="flex w-12 justify-center sm:w-16">
                     <Badge
                       variant={Number(grade.grade) >= 4 ? "success" : "secondary"}
                     >
                       {grade.grade}
                     </Badge>
                   </span>
-                  <span className="flex w-16 items-center justify-end gap-1">
+                  <span className="flex w-[76px] items-center justify-end gap-1 sm:w-20">
                     <Button
                       variant="ghost"
                       size="icon-sm"

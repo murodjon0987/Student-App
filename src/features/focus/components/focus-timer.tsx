@@ -220,8 +220,8 @@ export function FocusTimer({ subjects }: Props) {
           </div>
         )}
 
-        <div className="relative mx-auto flex size-64 items-center justify-center">
-          <svg className="size-64 -rotate-90" viewBox="0 0 240 240">
+        <div className="relative mx-auto flex size-56 sm:size-64 items-center justify-center">
+          <svg className="size-56 sm:size-64 -rotate-90" viewBox="0 0 240 240">
             <circle
               cx="120"
               cy="120"
