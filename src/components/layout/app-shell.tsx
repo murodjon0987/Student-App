@@ -11,6 +11,7 @@ import { NAV_SECTIONS, MOBILE_NAV } from "@/components/layout/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { NotificationBell } from "@/components/layout/notification-bell";
+import { NotificationPrompt } from "@/components/pwa/notification-prompt";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { initials } from "@/lib/utils";
@@ -198,6 +199,7 @@ export function AppShell({
       </div>
 
       <MobileNav />
+      <NotificationPrompt />
     </div>
   );
 }

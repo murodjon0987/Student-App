@@ -5,20 +5,10 @@ import { toast } from "sonner";
 
 import { Switch } from "@/components/ui/switch";
 import {
-  subscribeToUpdates,
-  unsubscribeFromUpdates,
-} from "@/features/notifications/actions";
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  const output = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; i += 1) {
-    output[i] = rawData.charCodeAt(i);
-  }
-  return output;
-}
+  disablePush,
+  enablePush,
+  isPushSupported,
+} from "@/features/notifications/push-client";
 
 export function PushToggle({ initialEnabled }: { initialEnabled: boolean }) {
   const [enabled, setEnabled] = React.useState(initialEnabled);
@@ -26,76 +16,31 @@ export function PushToggle({ initialEnabled }: { initialEnabled: boolean }) {
   const [supported, setSupported] = React.useState(false);
 
   React.useEffect(() => {
-    setSupported(
-      "serviceWorker" in navigator &&
-        "PushManager" in window &&
-        "Notification" in window
-    );
+    setSupported(isPushSupported());
   }, []);
 
   async function enable() {
-    const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-    if (!publicKey) {
-      toast.error("Push bildirishnomalar serverda sozlanmagan");
+    setBusy(true);
+    const result = await enablePush();
+    setBusy(false);
+    if (!result.ok) {
+      toast.error(result.error ?? "Xatolik yuz berdi");
       return;
     }
-
-    setBusy(true);
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        toast.error("Bildirishnomaga ruxsat berilmadi");
-        return;
-      }
-
-      const registration = await navigator.serviceWorker.ready;
-      const existing = await registration.pushManager.getSubscription();
-      const subscription =
-        existing ??
-        (await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
-        }));
-
-      const json = subscription.toJSON();
-      const result = await subscribeToUpdates({
-        endpoint: json.endpoint ?? "",
-        keys: {
-          p256dh: json.keys?.p256dh ?? "",
-          auth: json.keys?.auth ?? "",
-        },
-      });
-
-      if (!result.success) {
-        toast.error(result.error);
-        return;
-      }
-
-      setEnabled(true);
-      toast.success("Yangilanish bildirishnomalari yoqildi");
-    } catch {
-      toast.error("Obuna bo'lishda xatolik yuz berdi");
-    } finally {
-      setBusy(false);
-    }
+    setEnabled(true);
+    toast.success("Yangilanish bildirishnomalari yoqildi");
   }
 
   async function disable() {
     setBusy(true);
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        await unsubscribeFromUpdates(subscription.endpoint);
-        await subscription.unsubscribe();
-      }
-      setEnabled(false);
-      toast.success("Yangilanish bildirishnomalari o'chirildi");
-    } catch {
-      toast.error("O'chirishda xatolik yuz berdi");
-    } finally {
-      setBusy(false);
+    const result = await disablePush();
+    setBusy(false);
+    if (!result.ok) {
+      toast.error(result.error ?? "Xatolik yuz berdi");
+      return;
     }
+    setEnabled(false);
+    toast.success("Yangilanish bildirishnomalari o'chirildi");
   }
 
   return (
@@ -103,7 +48,7 @@ export function PushToggle({ initialEnabled }: { initialEnabled: boolean }) {
       <div className="space-y-0.5">
         <p className="text-sm font-medium">Yangilanish bildirishnomalari</p>
         <p className="text-xs text-muted-foreground">
-          Yangi versiya chiqqanda qurilmaga bildirishnoma yuboriladi.
+          Yangi versiya va kunlik eslatmalar qurilmaga yuboriladi.
         </p>
       </div>
       <Switch

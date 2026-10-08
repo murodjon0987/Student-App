@@ -129,6 +129,25 @@ Ilova yorliq (PWA) sifatida o'rnatilganda yangilanishlar avtomatik tekshiriladi:
    > Vercel'dagi **Build Command** `npm run build` bo'lishi kerak (`vercel.json` da
    > belgilangan), shunda `postbuild` ishlaydi. Lokal test uchun: `NOTIFY_ON_BUILD=1`.
 
+### Ruxsat so'rovi
+
+Ilovaga kirganda (login qilingan sahifalarda) `NotificationPrompt` komponenti
+bildirishnomaga ruxsat so'raydi. "Keyinroq" bosilsa, 3 kundan keyin yana so'raladi.
+
+### Kunlik eslatma (Vercel Cron)
+
+`vercel.json` da sozlangan cron har kuni `GET /api/cron/daily` ni chaqiradi:
+
+- Barcha foydalanuvchilarga ilova ichida qiziqarli eslatma yaratadi.
+- Push obuna bo'lganlarga bildirishnoma yuboradi.
+- Xabarlar ro'yxati: `src/features/notifications/daily-messages.ts`.
+
+Cron'ni himoyalash uchun `.env` va Vercel'ga `CRON_SECRET` qo'shing:
+
+```
+CRON_SECRET="<random>"
+```
+
 
 ## Foydali buyruqlar
 
