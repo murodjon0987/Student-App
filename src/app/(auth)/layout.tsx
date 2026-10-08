@@ -9,13 +9,14 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid min-h-dvh lg:grid-cols-2">
-      <div className="flex flex-col p-6">
+    <div className="relative grid min-h-dvh lg:grid-cols-2">
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(120%_55%_at_50%_0%,rgba(124,58,237,0.28),transparent_60%)] lg:hidden" />
+      <div className="flex flex-col p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-[max(1.5rem,env(safe-area-inset-top))]">
         <Link href="/" className="flex items-center gap-2">
           <BrandMark className="size-9 rounded-xl shadow-sm" />
           <span className="text-sm font-bold">Student App</span>
         </Link>
-        <div className="flex flex-1 items-center justify-center py-10">
+        <div className="flex flex-1 items-center justify-center py-8">
           <div className="w-full max-w-sm">{children}</div>
         </div>
       </div>

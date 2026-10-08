@@ -95,26 +95,25 @@ export function WelcomeScreen({
   ];
 
   return (
-    <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-      <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-        <Bot className="size-7" />
+    <div className="flex min-h-full flex-col items-center justify-center px-4 py-6 text-center">
+      <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary sm:size-14">
+        <Bot className="size-6 sm:size-7" />
       </div>
-      <h2 className="mt-4 text-lg font-semibold">
-        Salom! Men sizning AI o'quv yordamchingizman
+      <h2 className="mt-3 text-base font-semibold sm:text-lg">
+        Salom! Men sizning AI o&apos;quv yordamchingizman
       </h2>
-      <p className="mt-1 max-w-md text-sm text-muted-foreground">
-        Jadval, vazifa, imtihon, budjet va o'qish bo'yicha savollaringizga
-        ma'lumotlaringizga qarab javob beraman. Rasm ham chizib bera olaman —
-        shunchaki "rasmini chiz" deb yozing yoki pastdagi rasm tugmasini yoqing.
+      <p className="mt-1 max-w-md text-xs text-muted-foreground sm:text-sm">
+        Jadval, vazifa, imtihon va budjet bo&apos;yicha ma&apos;lumotlaringizga
+        qarab javob beraman. Rasm ham chizib bera olaman.
       </p>
-      <div className="mt-6 grid w-full max-w-lg grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="mt-4 grid w-full max-w-lg grid-cols-1 gap-2 sm:grid-cols-2">
         {prompts.map((prompt) => (
           <button
             key={prompt}
             type="button"
             onClick={() => onPrompt(prompt)}
             className={cn(
-              "rounded-xl border border-border bg-card px-4 py-3 text-left text-sm transition-colors",
+              "rounded-xl border border-border bg-card px-4 py-2.5 text-left text-sm transition-colors",
               "hover:border-primary/40 hover:bg-primary/5"
             )}
           >

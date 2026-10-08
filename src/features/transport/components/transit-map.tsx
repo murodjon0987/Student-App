@@ -4,6 +4,8 @@ import * as React from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+import { cn } from "@/lib/utils";
+
 export interface MapStop {
   id: string;
   name: string;
@@ -184,5 +186,10 @@ export default function TransitMap({
     mapRef.current.setView([focus.lat, focus.lng], focus.zoom ?? 15);
   }, [focus]);
 
-  return <div ref={containerRef} className={className} />;
+  return (
+    <div
+      ref={containerRef}
+      className={cn("relative isolate z-0", className)}
+    />
+  );
 }

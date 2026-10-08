@@ -51,8 +51,8 @@ export function FocusTimer({ subjects }: Props) {
   const router = useRouter();
 
   const [modeId, setModeId] = React.useState<string>(POMODORO_MODES[0].id);
-  const [customWork, setCustomWork] = React.useState(25);
-  const [customBreak, setCustomBreak] = React.useState(5);
+  const [customWork, setCustomWork] = React.useState("25");
+  const [customBreak, setCustomBreak] = React.useState("5");
   const [phase, setPhase] = React.useState<Phase>("work");
   const [running, setRunning] = React.useState(false);
   const [remaining, setRemaining] = React.useState(
@@ -68,14 +68,23 @@ export function FocusTimer({ subjects }: Props) {
     runningRef.current = running;
   }, [running]);
 
+  function parseMinutes(value: string, max: number) {
+    const n = Math.floor(Number(value));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.min(n, max);
+  }
+
+  const workMinutes = parseMinutes(customWork, 180);
+  const breakMinutes = parseMinutes(customBreak, 60);
+
   const config = React.useMemo(() => {
     if (modeId === "CUSTOM") {
-      return { work: customWork, break: customBreak, label: "Custom" };
+      return { work: workMinutes, break: breakMinutes, label: "Custom" };
     }
     const found =
       POMODORO_MODES.find((m) => m.id === modeId) ?? POMODORO_MODES[0];
     return { work: found.work, break: found.break, label: found.label };
-  }, [modeId, customWork, customBreak]);
+  }, [modeId, workMinutes, breakMinutes]);
 
   React.useEffect(() => {
     if (runningRef.current) return;
@@ -132,6 +141,10 @@ export function FocusTimer({ subjects }: Props) {
     if (running) {
       setRunning(false);
       endsAtRef.current = null;
+      return;
+    }
+    if (modeId === "CUSTOM" && (workMinutes < 1 || breakMinutes < 1)) {
+      toast.error("Kamida 1 daqiqa kiriting");
       return;
     }
     endsAtRef.current = Date.now() + remaining;
@@ -192,13 +205,13 @@ export function FocusTimer({ subjects }: Props) {
               <Input
                 id="customWork"
                 type="number"
-                min={1}
+                inputMode="numeric"
+                min={0}
                 max={180}
                 value={customWork}
                 disabled={running}
-                onChange={(event) =>
-                  setCustomWork(Math.max(1, Number(event.target.value) || 1))
-                }
+                onChange={(event) => setCustomWork(event.target.value)}
+                onBlur={() => setCustomWork(String(parseMinutes(customWork, 180)))}
               />
             </div>
             <div className="space-y-1.5">
@@ -208,12 +221,14 @@ export function FocusTimer({ subjects }: Props) {
               <Input
                 id="customBreak"
                 type="number"
-                min={1}
+                inputMode="numeric"
+                min={0}
                 max={60}
                 value={customBreak}
                 disabled={running}
-                onChange={(event) =>
-                  setCustomBreak(Math.max(1, Number(event.target.value) || 1))
+                onChange={(event) => setCustomBreak(event.target.value)}
+                onBlur={() =>
+                  setCustomBreak(String(parseMinutes(customBreak, 60)))
                 }
               />
             </div>

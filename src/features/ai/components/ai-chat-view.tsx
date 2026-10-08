@@ -259,7 +259,7 @@ export function AiChatView({
                 <Loader2 className="size-5 animate-spin" />
               </div>
             ) : messages.length === 0 ? (
-              <div className="h-full">
+              <div className="min-h-full">
                 <WelcomeScreen onPrompt={send} />
               </div>
             ) : (
