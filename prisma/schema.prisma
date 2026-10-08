@@ -44,6 +44,7 @@ model User {
   attachments       Attachment[]
   grades            Grade[]
   chats             Chat[]
+  pushSubscriptions PushSubscription[]
 
   @@index([email])
 }
@@ -321,6 +322,19 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, read])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Grade {

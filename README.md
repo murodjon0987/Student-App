@@ -95,6 +95,41 @@ Google hisobi birinchi marta kirganda avtomatik `User` + `StudentProfile` yarati
 > yarating va redirect URI'ni `https://<domen>/api/auth/google/callback` qilib qo'shing.
 
 
+## PWA yangilanish va push bildirishnomalar
+
+Ilova yorliq (PWA) sifatida o'rnatilganda yangilanishlar avtomatik tekshiriladi:
+
+- `public/sw.js` — service worker (network-first, keshlash yo'q).
+- Sahifa ochilganda va har 60 sekundda `/api/version` tekshiriladi. Yangi versiya
+  chiqsa, **"Yangi versiya mavjud — Yangilash"** tugmasi chiqadi.
+- Versiya `next.config.ts` da build paytida (Vercel'da commit SHA) aniqlanadi.
+
+### Push bildirishnomalar
+
+1. VAPID kalitlarini yarating:
+
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+
+2. Kalitlarni `.env` (va Vercel Environment Variables) ga qo'shing:
+
+   ```
+   NEXT_PUBLIC_VAPID_PUBLIC_KEY="..."
+   VAPID_PRIVATE_KEY="..."
+   VAPID_SUBJECT="mailto:admin@example.com"
+   ```
+
+3. Foydalanuvchi **Sozlamalar → Bildirishnomalar → "Yangilanish bildirishnomalari"**
+   ni yoqadi (brauzer ruxsati so'raladi).
+
+4. Har bir production deploy'da (`npm run build` → `postbuild`) barcha obunachilarga
+   "Yangi versiya mavjud" push yuboriladi. Preview deploy'larda yuborilmaydi.
+
+   > Vercel'dagi **Build Command** `npm run build` bo'lishi kerak (`vercel.json` da
+   > belgilangan), shunda `postbuild` ishlaydi. Lokal test uchun: `NOTIFY_ON_BUILD=1`.
+
+
 ## Foydali buyruqlar
 
 | Buyruq              | Tavsif                              |

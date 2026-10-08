@@ -44,6 +44,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { logout } from "@/lib/auth/actions";
 import { cn } from "@/lib/utils";
+import { PushToggle } from "@/features/settings/components/push-toggle";
 import {
   deleteAccount,
   deleteAllData,
@@ -64,6 +65,7 @@ interface Props {
     notificationsEnabled: boolean;
     monthlyBudget: number;
   };
+  pushEnabled: boolean;
 }
 
 const LANGUAGE_OPTIONS: { value: SettingsInput["language"]; label: string }[] =
@@ -95,7 +97,7 @@ function asTheme(value: string): SettingsInput["theme"] {
     : "system";
 }
 
-export function SettingsView({ email, profile }: Props) {
+export function SettingsView({ email, profile, pushEnabled }: Props) {
   const router = useRouter();
   const { setTheme } = useTheme();
 
@@ -211,7 +213,7 @@ export function SettingsView({ email, profile }: Props) {
               Eslatmalar va muhim xabarlarni olish.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <p className="text-sm font-medium">Push-bildirishnomalar</p>
@@ -228,6 +230,8 @@ export function SettingsView({ email, profile }: Props) {
                 }
               />
             </div>
+            <Separator />
+            <PushToggle initialEnabled={pushEnabled} />
           </CardContent>
         </Card>
 
