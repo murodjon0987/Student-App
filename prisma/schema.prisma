@@ -46,6 +46,8 @@ model User {
   chats             Chat[]
   pushSubscriptions PushSubscription[]
   generatedImages   GeneratedImage[]
+  housingListings   HousingListing[]
+  housingFavorites  HousingFavorite[]
 
   @@index([email])
 }
@@ -400,6 +402,69 @@ model GeneratedImage {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Housing / rental marketplace (talabalar uchun kvartiralar)
+// ---------------------------------------------------------------------------
+
+model HousingListing {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   @default("APARTMENT") // APARTMENT | ROOM | HOUSE | DORMITORY | SHARED
+  title       String
+  description String?
+  price       Int
+  currency    String   @default("UZS") // UZS | USD
+  rooms       Int      @default(1)
+  area        Float?
+  floor       Int?
+  totalFloors Int?
+  city        String
+  district    String?
+  address     String?
+  lat         Float
+  lng         Float
+  phone       String?
+  telegram    String?
+  amenities   String[] @default([])
+  status      String   @default("ACTIVE") // ACTIVE | RENTED | ARCHIVED
+  views       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  images    HousingImage[]
+  favorites HousingFavorite[]
+
+  @@index([city])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model HousingImage {
+  id        String         @id @default(cuid())
+  listingId String
+  listing   HousingListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  mimeType  String         @default("image/jpeg")
+  data      Bytes
+  position  Int            @default(0)
+  createdAt DateTime       @default(now())
+
+  @@index([listingId])
+}
+
+model HousingFavorite {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listingId String
+  listing   HousingListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@unique([userId, listingId])
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------

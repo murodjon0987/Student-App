@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Bell,
+  Building2,
   Bus,
   CalendarDays,
   CalendarRange,
@@ -45,6 +46,10 @@ export const NAV_SECTIONS: NavSection[] = [
       { href: "/calendar", label: "Kalendar", icon: CalendarRange },
       { href: "/transport", label: "Transport", icon: Bus },
     ],
+  },
+  {
+    title: "Turar joy",
+    items: [{ href: "/housing", label: "Kvartiralar", icon: Building2 }],
   },
   {
     title: "O'qish",

@@ -17,6 +17,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
+    "db:seed-housing": "tsx scripts/seed-housing.ts",
     "db:studio": "prisma studio",
     "transport:sync": "tsx scripts/sync-transit.ts",
     "postinstall": "prisma generate"

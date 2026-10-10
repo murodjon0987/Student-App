@@ -33,6 +33,10 @@ const nextConfig: NextConfig = {
       static: 300,
     },
     optimizePackageImports: ["lucide-react", "date-fns", "recharts"],
+    serverActions: {
+      // Rasm yuklash uchun (galereyadan) limit.
+      bodySizeLimit: "4mb",
+    },
   },
   async headers() {
     return [
