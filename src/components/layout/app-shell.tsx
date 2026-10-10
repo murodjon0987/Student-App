@@ -109,6 +109,7 @@ function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
               className={cn(
                 "flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors",
                 active ? "text-primary" : "text-muted-foreground"
