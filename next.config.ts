@@ -25,6 +25,15 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: APP_VERSION,
   },
+  experimental: {
+    // Sahifalar orasida qaytishda/ochishda client router keshi ishlatiladi —
+    // takroriy tashriflar bir zumda ochiladi.
+    staleTimes: {
+      dynamic: 30,
+      static: 300,
+    },
+    optimizePackageImports: ["lucide-react", "date-fns", "recharts"],
+  },
   async headers() {
     return [
       {

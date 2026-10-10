@@ -34,11 +34,36 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  // API va Next.js ichki so'rovlarini hech qachon keshlmaymiz.
-  if (url.pathname.startsWith("/api/")) return;
-  if (url.pathname.startsWith("/_next/")) return;
 
-  // Network-first: har doim yangi kontent olinadi, tarmoq yo'q bo'lsa keshdan.
+  // API so'rovlarini hech qachon keshlmaymiz.
+  if (url.pathname.startsWith("/api/")) return;
+
+  // Statik va hash bilan nomlangan Next.js fayllari — cache-first (tez).
+  if (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/_next/image") ||
+    url.pathname.startsWith("/icons/") ||
+    /\.(?:css|js|woff2?|png|jpg|jpeg|svg|webp|ico)$/.test(url.pathname)
+  ) {
+    event.respondWith(
+      caches.open(`student-app-${SW_VERSION}`).then(async (cache) => {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        try {
+          const response = await fetch(request);
+          if (response.ok) cache.put(request, response.clone());
+          return response;
+        } catch (error) {
+          const fallback = await cache.match(request);
+          if (fallback) return fallback;
+          throw error;
+        }
+      })
+    );
+    return;
+  }
+
+  // Sahifalar/RSC — network-first: har doim yangi kontent, tarmoq yo'q bo'lsa kesh.
   event.respondWith(fetch(request).catch(() => caches.match(request)));
 });
 

@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth/dal";
+import { getCurrentUser, verifySession } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/layout/app-shell";
 
@@ -7,11 +7,14 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const { userId } = await verifySession();
 
-  const unreadCount = await prisma.notification.count({
-    where: { userId: user.id, read: false },
-  });
+  const [user, unreadCount] = await Promise.all([
+    getCurrentUser(),
+    prisma.notification.count({
+      where: { userId, read: false },
+    }),
+  ]);
 
   return (
     <AppShell
