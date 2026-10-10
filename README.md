@@ -149,6 +149,25 @@ CRON_SECRET="<random>"
 ```
 
 
+## AI rasm generatsiyasi
+
+AI yordamchi rasm so'rovlarini avtomatik aniqlab, rasm generatsiya qiladi.
+Ikki provayder qo'llab-quvvatlanadi:
+
+1. **Gemini** (`gemini-2.5-flash-image`, `gemini-3.1-flash-image`, ...) — eng aniq
+   natija, lekin **billing talab qiladi** (bepul kvota = 0).
+2. **Pollinations** (`sana`) — bepul, lekin anonim rejimda sekin (15 sek/so'rov) va
+   suv belgisi bo'ladi.
+
+`AI_IMAGE_PROVIDER="auto"` (standart) bo'lsa, avval Gemini sinaladi, ishlamasa
+Pollinations'ga o'tadi. So'rov avval Gemini matn modeli orqali batafsil ingliz
+tilidagi promptga aylantiriladi (aniqlikni oshiradi).
+
+Muhit o'zgaruvchilari: `AI_IMAGE_PROVIDER`, `POLLINATIONS_TOKEN`,
+`POLLINATIONS_MODEL`, `GEMINI_IMAGE_PROMPT_MODEL`, `AI_IMAGE_DISABLED`.
+Gemini rasmlari bazada saqlanadi va `/api/ai/image/[id]` orqali beriladi.
+
+
 ## Foydali buyruqlar
 
 | Buyruq              | Tavsif                              |

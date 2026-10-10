@@ -45,6 +45,7 @@ model User {
   grades            Grade[]
   chats             Chat[]
   pushSubscriptions PushSubscription[]
+  generatedImages   GeneratedImage[]
 
   @@index([email])
 }
@@ -386,6 +387,19 @@ model ChatMessage {
   createdAt DateTime @default(now())
 
   @@index([chatId, createdAt])
+}
+
+model GeneratedImage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mimeType  String   @default("image/png")
+  data      Bytes
+  prompt    String?
+  provider  String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
 }
 
 // ---------------------------------------------------------------------------

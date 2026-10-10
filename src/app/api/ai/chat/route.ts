@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
   if (wantsImage && isImageGenerationConfigured()) {
     return streamImageResponse({
       request,
+      userId,
       chatId,
       title,
       message,
@@ -181,11 +182,13 @@ export async function POST(request: NextRequest) {
 
 function streamImageResponse({
   request,
+  userId,
   chatId,
   title,
   message,
 }: {
   request: NextRequest;
+  userId: string;
   chatId: string;
   title: string;
   message: string;
@@ -202,7 +205,7 @@ function streamImageResponse({
 
       let full = "";
       try {
-        const image = await generateImage(message, request.signal);
+        const image = await generateImage(userId, message, request.signal);
         const alt = image.prompt.replace(/[\[\]]/g, "");
         full = `Mana siz so'ragan rasm:\n\n![${alt}](${image.url})`;
         send({ type: "delta", text: full });
