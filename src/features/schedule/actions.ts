@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
+import { ownsSubject } from "@/lib/ownership";
 import { verifySession } from "@/lib/auth/dal";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { scheduleSchema, type ScheduleInput } from "./schema";
@@ -20,6 +21,8 @@ export async function saveSchedule(
   const data = parsed.data;
 
   try {
+    if (!(await ownsSubject(userId, data.subjectId))) return fail("Fan topilmadi");
+
     if (data.id) {
       const existing = await prisma.schedule.findFirst({
         where: { id: data.id, userId },
@@ -27,7 +30,7 @@ export async function saveSchedule(
       if (!existing) return fail("Dars topilmadi");
 
       await prisma.schedule.update({
-        where: { id: data.id },
+        where: { id: data.id, userId },
         data: {
           title: data.title,
           subjectId: data.subjectId || null,
@@ -70,7 +73,7 @@ export async function deleteSchedule(id: string): Promise<ActionResult> {
   if (!existing) return fail("Dars topilmadi");
 
   try {
-    await prisma.schedule.delete({ where: { id } });
+    await prisma.schedule.delete({ where: { id, userId } });
     revalidatePath("/", "layout");
     return ok();
   } catch {

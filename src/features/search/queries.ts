@@ -2,6 +2,12 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/format";
+import { literalSearch } from "@/lib/list-query";
+import { pageNumber, type ListParams } from "@/lib/pagination";
+
+export const SEARCH_PAGE_SIZE = 8;
+export interface SearchPageInfo { page: number; hasMore: boolean }
+export type SearchPages = Record<keyof SearchGroups, SearchPageInfo>;
 
 export interface SearchResultItem {
   id: string;
@@ -20,6 +26,10 @@ export interface SearchGroups {
   goals: SearchResultItem[];
   subjects: SearchResultItem[];
   transit: SearchResultItem[];
+  decks: SearchResultItem[];
+  plans: SearchResultItem[];
+  questions: SearchResultItem[];
+  opportunities: SearchResultItem[];
 }
 
 const EMPTY_GROUPS: SearchGroups = {
@@ -32,6 +42,10 @@ const EMPTY_GROUPS: SearchGroups = {
   goals: [],
   subjects: [],
   transit: [],
+  decks: [],
+  plans: [],
+  questions: [],
+  opportunities: [],
 };
 
 function snippet(value: string | null | undefined) {
@@ -41,14 +55,22 @@ function snippet(value: string | null | undefined) {
 
 export async function globalSearch(
   userId: string,
-  q: string
-): Promise<SearchGroups> {
-  const term = q.trim();
-  if (term.length < 2) return EMPTY_GROUPS;
+  q: string,
+  params: ListParams = {},
+): Promise<{ groups: SearchGroups; pages: SearchPages }> {
+  const term = q.trim().slice(0, 200);
+  const keys = Object.keys(EMPTY_GROUPS) as (keyof SearchGroups)[];
+  const pages = Object.fromEntries(keys.map((key) => [key, { page: Math.min(pageNumber(params[key + "Page"]), 100_000), hasMore: false }])) as SearchPages;
+  if (term.length < 2) return { groups: EMPTY_GROUPS, pages };
+  const range = (key: keyof SearchGroups) => ({ skip: (pages[key].page - 1) * SEARCH_PAGE_SIZE, take: SEARCH_PAGE_SIZE + 1 });
+  function visible<T>(key: keyof SearchGroups, items: T[]): T[] {
+    pages[key].hasMore = items.length > SEARCH_PAGE_SIZE;
+    return items.slice(0, SEARCH_PAGE_SIZE);
+  }
 
-  const contains = { contains: term, mode: "insensitive" as const };
+  const contains = { contains: literalSearch(term), mode: "insensitive" as const };
 
-  const [notes, tasks, homework, exams, materials, events, goals, subjects, transit] =
+  const [notes, tasks, homework, exams, materials, events, goals, subjects, transit, decks, plans, questions, opportunities] =
     await Promise.all([
       prisma.note.findMany({
         where: {
@@ -59,114 +81,123 @@ export async function globalSearch(
             { tags: { hasSome: [term] } },
           ],
         },
-        orderBy: { updatedAt: "desc" },
-        take: 8,
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        ...range("notes"),
       }),
       prisma.task.findMany({
         where: {
           userId,
           OR: [{ title: contains }, { description: contains }],
         },
-        orderBy: { createdAt: "desc" },
-        take: 8,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        ...range("tasks"),
       }),
       prisma.homework.findMany({
         where: {
           userId,
           OR: [{ title: contains }, { description: contains }],
         },
-        orderBy: { createdAt: "desc" },
-        take: 8,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        ...range("homework"),
       }),
       prisma.exam.findMany({
         where: { userId, title: contains },
-        orderBy: { date: "asc" },
-        take: 8,
+        orderBy: [{ date: "asc" }, { id: "asc" }],
+        ...range("exams"),
       }),
       prisma.material.findMany({
         where: {
           userId,
           OR: [{ title: contains }, { description: contains }],
         },
-        orderBy: { createdAt: "desc" },
-        take: 8,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        ...range("materials"),
       }),
       prisma.event.findMany({
         where: { userId, title: contains },
-        orderBy: { start: "desc" },
-        take: 8,
+        orderBy: [{ start: "desc" }, { id: "desc" }],
+        ...range("events"),
       }),
       prisma.goal.findMany({
         where: { userId, title: contains },
-        orderBy: { createdAt: "desc" },
-        take: 8,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        ...range("goals"),
       }),
       prisma.subject.findMany({
         where: { userId, name: contains },
-        orderBy: { name: "asc" },
-        take: 8,
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        ...range("subjects"),
       }),
       prisma.transitStop.findMany({
         where: { name: contains },
-        orderBy: { name: "asc" },
-        take: 8,
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        ...range("transit"),
       }),
+      prisma.flashcardDeck.findMany({ where: { userId, OR: [{ title: contains }, { subject: contains }] }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], ...range("decks"), select: { id: true, title: true, subject: true } }),
+      prisma.studyPlan.findMany({ orderBy: [{ createdAt: "desc" }, { id: "desc" }], where: { userId, exam: { title: contains } }, ...range("plans"), include: { exam: { select: { title: true, date: true } } } }),
+      prisma.groupPost.findMany({ where: { kind: "QUESTION", group: { members: { some: { userId } } }, OR: [{ title: contains }, { subject: contains }, { topic: contains }] }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], ...range("questions"), select: { id: true, title: true, subject: true, topic: true } }),
+      prisma.opportunity.findMany({ where: { deadline: { gte: new Date() }, OR: [{ title: contains }, { organization: contains }, { field: contains }] }, orderBy: [{ deadline: "asc" }, { id: "asc" }], ...range("opportunities"), select: { id: true, title: true, organization: true } }),
     ]);
 
-  return {
-    notes: notes.map((note) => ({
+  const groups: SearchGroups = {
+    decks: visible("decks", decks).map((d) => ({ id: d.id, title: d.title, subtitle: d.subject, href: `/search/decks/${d.id}` })),
+    plans: visible("plans", plans).map((p) => ({ id: p.id, title: p.exam.title, subtitle: formatDate(p.exam.date), href: `/study-plans?exam=${p.examId}` })),
+    questions: visible("questions", questions).map((q) => ({ id: q.id, title: q.title, subtitle: [q.subject, q.topic].filter(Boolean).join(" · "), href: `/groups/questions/${q.id}` })),
+    opportunities: visible("opportunities", opportunities).map((o) => ({ id: o.id, title: o.title, subtitle: o.organization, href: `/search/opportunities/${o.id}` })),
+    notes: visible("notes", notes).map((note) => ({
       id: note.id,
       title: note.title,
       subtitle: snippet(note.content) || note.tags.join(", "),
-      href: "/notes",
+      href: `/search/notes/${note.id}`,
     })),
-    tasks: tasks.map((task) => ({
+    tasks: visible("tasks", tasks).map((task) => ({
       id: task.id,
       title: task.title,
       subtitle: snippet(task.description),
-      href: "/tasks",
+      href: `/search/tasks/${task.id}`,
     })),
-    homework: homework.map((item) => ({
+    homework: visible("homework", homework).map((item) => ({
       id: item.id,
       title: item.title,
       subtitle: snippet(item.description),
-      href: "/homework",
+      href: `/search/homework/${item.id}`,
     })),
-    exams: exams.map((exam) => ({
+    exams: visible("exams", exams).map((exam) => ({
       id: exam.id,
       title: exam.title,
       subtitle: `${formatDate(exam.date)}${exam.time ? ` · ${exam.time}` : ""}`,
-      href: "/exams",
+      href: `/search/exams/${exam.id}`,
     })),
-    materials: materials.map((material) => ({
+    materials: visible("materials", materials).map((material) => ({
       id: material.id,
       title: material.title,
       subtitle: snippet(material.description),
-      href: "/materials",
+      href: `/search/materials/${material.id}`,
     })),
-    events: events.map((event) => ({
+    events: visible("events", events).map((event) => ({
       id: event.id,
       title: event.title,
       subtitle: formatDate(event.start),
-      href: "/calendar",
+      href: `/search/events/${event.id}`,
     })),
-    goals: goals.map((goal) => ({
+    goals: visible("goals", goals).map((goal) => ({
       id: goal.id,
       title: goal.title,
       subtitle: goal.targetDate ? formatDate(goal.targetDate) : snippet(goal.description),
-      href: "/goals",
+      href: `/search/goals/${goal.id}`,
     })),
-    subjects: subjects.map((subject) => ({
+    subjects: visible("subjects", subjects).map((subject) => ({
       id: subject.id,
       title: subject.name,
       subtitle: subject.teacher ?? "",
-      href: "/schedule",
+      href: `/search/subjects/${subject.id}`,
     })),
-    transit: transit.map((stop) => ({
+    transit: visible("transit", transit).map((stop) => ({
       id: stop.id,
       title: stop.name,
       subtitle: stop.mode === "METRO" ? "Metro bekati" : "Avtobus bekati",
       href: `/transport/stop/${stop.id}`,
     })),
   };
+  return { groups, pages };
 }

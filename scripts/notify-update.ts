@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { PrismaClient } from "@prisma/client";
 import webpush from "web-push";
+import { notificationRecipientsWhere } from "../src/features/notifications/preferences";
 
 async function main() {
   const enabled =
@@ -48,7 +49,9 @@ async function main() {
   const prisma = new PrismaClient();
 
   try {
-    const subscriptions = await prisma.pushSubscription.findMany();
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { user: { is: notificationRecipientsWhere } },
+    });
     let sent = 0;
     const expiredIds: string[] = [];
 

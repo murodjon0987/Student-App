@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MATERIAL_CATEGORIES } from "@/lib/constants";
+import { AttachmentManager } from "@/features/attachments/components/attachment-manager";
 import { saveMaterial } from "@/features/materials/actions";
 import {
   materialSchema,
@@ -105,7 +106,7 @@ export function MaterialFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {initial ? "Materialni tahrirlash" : "Yangi material"}
@@ -200,6 +201,10 @@ export function MaterialFormDialog({
             </Button>
           </DialogFooter>
         </form>
+
+        {initial?.id && (
+          <AttachmentManager parent={{ materialId: initial.id }} />
+        )}
       </DialogContent>
     </Dialog>
   );

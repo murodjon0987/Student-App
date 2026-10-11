@@ -1,4 +1,5 @@
 import "server-only";
+import { setTimeout as delay } from "node:timers/promises";
 
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -15,6 +16,7 @@ const DEFAULT_MODELS = [
 export interface AiMessage {
   role: "user" | "assistant";
   content: string;
+  attachment?: { mimeType: string; data: string };
 }
 
 export function getAiModel() {
@@ -25,8 +27,8 @@ export function isAiConfigured() {
   return Boolean(process.env.GEMINI_API_KEY?.trim());
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal) {
+  return delay(ms, undefined, { signal });
 }
 
 function modelCandidates(): string[] {
@@ -74,7 +76,7 @@ function buildRequest(
       systemInstruction: { parts: [{ text: system }] },
       contents: messages.map((m) => ({
         role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
+        parts: [{ text: m.content }, ...(m.attachment ? [{ inlineData: m.attachment }] : [])],
       })),
       generationConfig: {
         temperature: 0.7,
@@ -110,13 +112,15 @@ export async function* streamGemini({
 
   outer: for (const model of modelCandidates()) {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      signal?.throwIfAborted();
       let res: Response;
       try {
         res = await buildRequest(model, apiKey, system, messages, signal);
       } catch (error) {
+        signal?.throwIfAborted();
         if (error instanceof Error && error.name === "AbortError") throw error;
         lastError = "Gemini serveriga ulanib bo'lmadi";
-        await sleep(500 * attempt);
+        await sleep(500 * attempt, signal);
         continue;
       }
 
@@ -138,7 +142,7 @@ export async function* streamGemini({
       lastError = `Gemini xato (${res.status}): ${
         detail.slice(0, 300) || "javob yo'q"
       }`;
-      if (attempt < MAX_ATTEMPTS) await sleep(500 * attempt);
+      if (attempt < MAX_ATTEMPTS) await sleep(500 * attempt, signal);
     }
   }
 
@@ -153,10 +157,8 @@ export async function* streamGemini({
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
+      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
+      const lines = (done ? `${buffer}\n` : buffer).split("\n");
       buffer = lines.pop() ?? "";
 
       for (const raw of lines) {
@@ -186,6 +188,7 @@ export async function* streamGemini({
           }
         }
       }
+      if (done) break;
     }
   } finally {
     reader.releaseLock();

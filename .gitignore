@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -42,3 +43,7 @@ next-env.d.ts
 
 # transport sync cache
 scripts/.cache/
+scripts/.student-tools-smoke.json
+
+# generated media/tools
+/artifacts/

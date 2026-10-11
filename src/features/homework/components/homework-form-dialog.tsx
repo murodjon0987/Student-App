@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/format";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PRIORITY_LABELS, STATUS_LABELS } from "@/lib/constants";
+import { AttachmentManager } from "@/features/attachments/components/attachment-manager";
 import { saveHomework } from "@/features/homework/actions";
 import { homeworkSchema, type HomeworkInput } from "@/features/homework/schema";
 
@@ -49,7 +50,7 @@ interface Props {
 
 function toLocalInput(value: Date | string | null | undefined) {
   if (!value) return "";
-  return format(new Date(value), "yyyy-MM-dd'T'HH:mm");
+  return formatDate(value, "yyyy-MM-dd'T'HH:mm");
 }
 
 export function HomeworkFormDialog({
@@ -112,7 +113,7 @@ export function HomeworkFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {initial ? "Vazifani tahrirlash" : "Yangi vazifa"}
@@ -221,6 +222,10 @@ export function HomeworkFormDialog({
             </Button>
           </DialogFooter>
         </form>
+
+        {initial?.id && (
+          <AttachmentManager parent={{ homeworkId: initial.id }} />
+        )}
       </DialogContent>
     </Dialog>
   );

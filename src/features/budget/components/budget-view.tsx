@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { format } from "date-fns";
+import { appDateParts, localDateKey, shiftMonth as shiftedMonth } from "@/lib/date";
 import {
   ChevronLeft,
   ChevronRight,
@@ -48,9 +48,9 @@ function monthLabel(month: string) {
 
 function daysElapsed(month: string) {
   const [year, index] = month.split("-").map(Number);
-  const now = new Date();
-  const isCurrent = year === now.getFullYear() && index === now.getMonth() + 1;
-  return isCurrent ? now.getDate() : new Date(year, index, 0).getDate();
+  const now = appDateParts();
+  const isCurrent = year === now.year && index === now.month + 1;
+  return isCurrent ? now.day : new Date(Date.UTC(year, index, 0)).getUTCDate();
 }
 
 export function BudgetView({ data }: Props) {
@@ -66,7 +66,7 @@ export function BudgetView({ data }: Props) {
   const groups = React.useMemo(() => {
     const map = new Map<string, BudgetData["expenses"]>();
     for (const expense of data.expenses) {
-      const key = format(new Date(expense.date), "yyyy-MM-dd");
+      const key = localDateKey(expense.date);
       const list = map.get(key) ?? [];
       list.push(expense);
       map.set(key, list);
@@ -75,14 +75,10 @@ export function BudgetView({ data }: Props) {
   }, [data.expenses]);
 
   function shiftMonth(delta: number) {
-    const [year, index] = data.month.split("-").map(Number);
-    const next = new Date(year, index - 1 + delta, 1);
-    const key = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}`;
+    const key = shiftedMonth(data.month, delta);
     const params = new URLSearchParams(searchParams.toString());
     params.set("month", key);
+    params.delete("page");
     router.push(`/budget?${params.toString()}`);
   }
 
@@ -156,7 +152,7 @@ export function BudgetView({ data }: Props) {
           <CardTitle className="text-base">Budjet jarayoni</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="text-muted-foreground">
               {data.budget > 0
                 ? `${formatCurrency(data.total)} / ${formatCurrency(data.budget)}`
@@ -258,7 +254,7 @@ export function BudgetView({ data }: Props) {
                           {formatDate(day)}
                         </span>
                         <span className="tabular-nums">
-                          {formatCurrency(dayTotal)}
+                            Bu sahifada: {formatCurrency(dayTotal)}
                         </span>
                       </div>
                       <div className="space-y-1.5">

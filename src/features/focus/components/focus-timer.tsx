@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useFocusTimer } from "./focus-provider";
+import { parseMinutes, timerConfig } from "../timer-state";
 import {
   BookOpen,
   CheckCircle2,
@@ -10,7 +10,6 @@ import {
   Play,
   RotateCcw,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,11 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { POMODORO_MODES } from "@/lib/constants";
-import { minutesToHours } from "@/lib/format";
-import { cn } from "@/lib/utils";
-import { saveStudySession } from "@/features/focus/actions";
 
-type Phase = "work" | "break";
+import { cn } from "@/lib/utils";
 
 interface Props {
   subjects: { id: string; name: string }[];
@@ -48,120 +44,14 @@ function formatClock(ms: number) {
 }
 
 export function FocusTimer({ subjects }: Props) {
-  const router = useRouter();
-
-  const [modeId, setModeId] = React.useState<string>(POMODORO_MODES[0].id);
-  const [customWork, setCustomWork] = React.useState("25");
-  const [customBreak, setCustomBreak] = React.useState("5");
-  const [phase, setPhase] = React.useState<Phase>("work");
-  const [running, setRunning] = React.useState(false);
-  const [remaining, setRemaining] = React.useState(
-    POMODORO_MODES[0].work * 60_000
-  );
-  const [completed, setCompleted] = React.useState(0);
-  const [subjectId, setSubjectId] = React.useState("none");
-
-  const endsAtRef = React.useRef<number | null>(null);
-  const runningRef = React.useRef(false);
-
-  React.useEffect(() => {
-    runningRef.current = running;
-  }, [running]);
-
-  function parseMinutes(value: string, max: number) {
-    const n = Math.floor(Number(value));
-    if (!Number.isFinite(n) || n <= 0) return 0;
-    return Math.min(n, max);
-  }
-
-  const workMinutes = parseMinutes(customWork, 180);
-  const breakMinutes = parseMinutes(customBreak, 60);
-
-  const config = React.useMemo(() => {
-    if (modeId === "CUSTOM") {
-      return { work: workMinutes, break: breakMinutes, label: "Custom" };
-    }
-    const found =
-      POMODORO_MODES.find((m) => m.id === modeId) ?? POMODORO_MODES[0];
-    return { work: found.work, break: found.break, label: found.label };
-  }, [modeId, workMinutes, breakMinutes]);
-
-  React.useEffect(() => {
-    if (runningRef.current) return;
-    setRemaining((phase === "work" ? config.work : config.break) * 60_000);
-    endsAtRef.current = null;
-  }, [config.work, config.break, phase]);
-
-  const completePhase = React.useCallback(async () => {
-    if (phase === "work") {
-      const minutes = config.work;
-      const result = await saveStudySession({
-        subjectId: subjectId === "none" ? null : subjectId,
-        durationMin: minutes,
-        mode: modeId,
-      });
-      if (!result.success) {
-        toast.error(result.error);
-      } else {
-        setCompleted((count) => count + 1);
-        toast.success(`Ish yakunlandi: ${minutesToHours(minutes)}`);
-        router.refresh();
-      }
-
-      const breakMs = config.break * 60_000;
-      setPhase("break");
-      endsAtRef.current = Date.now() + breakMs;
-      setRemaining(breakMs);
-    } else {
-      toast.success("Tanaffus tugadi. Ishga qaytamiz!");
-      const workMs = config.work * 60_000;
-      setPhase("work");
-      endsAtRef.current = Date.now() + workMs;
-      setRemaining(workMs);
-    }
-  }, [phase, config.work, config.break, subjectId, modeId, router]);
-
-  React.useEffect(() => {
-    if (!running) return;
-    const id = window.setInterval(() => {
-      const endsAt = endsAtRef.current;
-      if (endsAt == null) return;
-      const left = endsAt - Date.now();
-      if (left <= 0) {
-        window.clearInterval(id);
-        void completePhase();
-      } else {
-        setRemaining(left);
-      }
-    }, 250);
-    return () => window.clearInterval(id);
-  }, [running, completePhase]);
-
-  function toggle() {
-    if (running) {
-      setRunning(false);
-      endsAtRef.current = null;
-      return;
-    }
-    if (modeId === "CUSTOM" && (workMinutes < 1 || breakMinutes < 1)) {
-      toast.error("Kamida 1 daqiqa kiriting");
-      return;
-    }
-    endsAtRef.current = Date.now() + remaining;
-    setRunning(true);
-  }
-
-  function reset() {
-    setRunning(false);
-    setPhase("work");
-    setRemaining(config.work * 60_000);
-    endsAtRef.current = null;
-  }
-
-  function chooseMode(id: string) {
-    setModeId(id);
-    setPhase("work");
-  }
+  const { state, remaining, ready, saving, saveError, configure, toggle, reset, retry } = useFocusTimer();
+  const { modeId, customWork, customBreak, phase, running, completed, subjectId } = state;
+  const config = timerConfig(state);
+  const disabled = !ready || running || Boolean(state.pending);
+  const setCustomWork = (customWork: string) => configure({ customWork });
+  const setCustomBreak = (customBreak: string) => configure({ customBreak });
+  const setSubjectId = (subjectId: string) => configure({ subjectId });
+  const chooseMode = (modeId: string) => configure({ modeId });
 
   const isWork = phase === "work";
   const phaseMs = (isWork ? config.work : config.break) * 60_000;
@@ -172,6 +62,13 @@ export function FocusTimer({ subjects }: Props) {
   return (
     <Card>
       <CardContent className="space-y-6 pt-5">
+        <p className="text-xs text-muted-foreground">Taymer boshqa bo'limda ham davom etadi. Har bosqich tugagach, keyingisini o'zingiz boshlang.</p>
+        {state.pending && (
+          <div role="status" className="rounded-lg border p-3 text-sm">
+            {saving ? "Sessiya saqlanmoqda..." : saveError ?? "Sessiya saqlashni kutmoqda."}
+            {!saving && <Button type="button" variant="outline" size="sm" className="ml-2" onClick={retry}>Qayta saqlash</Button>}
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {POMODORO_MODES.map((item) => (
             <Button
@@ -179,7 +76,7 @@ export function FocusTimer({ subjects }: Props) {
               type="button"
               size="sm"
               variant={modeId === item.id ? "default" : "outline"}
-              disabled={running}
+              disabled={disabled}
               onClick={() => chooseMode(item.id)}
             >
               {item.label}
@@ -189,10 +86,10 @@ export function FocusTimer({ subjects }: Props) {
             type="button"
             size="sm"
             variant={modeId === "CUSTOM" ? "default" : "outline"}
-            disabled={running}
+            disabled={disabled}
             onClick={() => chooseMode("CUSTOM")}
           >
-            Custom
+            Moslashtirish
           </Button>
         </div>
 
@@ -206,10 +103,10 @@ export function FocusTimer({ subjects }: Props) {
                 id="customWork"
                 type="number"
                 inputMode="numeric"
-                min={0}
+                min={1}
                 max={180}
                 value={customWork}
-                disabled={running}
+                disabled={disabled}
                 onChange={(event) => setCustomWork(event.target.value)}
                 onBlur={() => setCustomWork(String(parseMinutes(customWork, 180)))}
               />
@@ -222,10 +119,10 @@ export function FocusTimer({ subjects }: Props) {
                 id="customBreak"
                 type="number"
                 inputMode="numeric"
-                min={0}
+                min={1}
                 max={60}
                 value={customBreak}
-                disabled={running}
+                disabled={disabled}
                 onChange={(event) => setCustomBreak(event.target.value)}
                 onBlur={() =>
                   setCustomBreak(String(parseMinutes(customBreak, 60)))
@@ -289,7 +186,7 @@ export function FocusTimer({ subjects }: Props) {
           <Select
             value={subjectId}
             onValueChange={setSubjectId}
-            disabled={running}
+            disabled={disabled}
           >
             <SelectTrigger>
               <SelectValue placeholder="Fan tanlang" />
@@ -305,8 +202,8 @@ export function FocusTimer({ subjects }: Props) {
           </Select>
         </div>
 
-        <div className="flex items-center justify-center gap-3">
-          <Button size="lg" className="min-w-32" onClick={toggle}>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Button size="lg" className="min-w-32" disabled={!ready || Boolean(state.pending)} onClick={toggle}>
             {running ? (
               <>
                 <Pause className="size-4" /> To&apos;xtatish
@@ -317,12 +214,12 @@ export function FocusTimer({ subjects }: Props) {
               </>
             )}
           </Button>
-          <Button size="lg" variant="outline" onClick={reset}>
+          <Button size="lg" variant="outline" disabled={!ready || Boolean(state.pending)} onClick={reset}>
             <RotateCcw className="size-4" /> Qayta tiklash
           </Button>
         </div>
 
-        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-center gap-2 text-center text-sm text-muted-foreground">
           <CheckCircle2 className="size-4 text-emerald-500" />
           Yakunlangan sessiyalar:
           <span className="font-semibold text-foreground">{completed}</span> ta

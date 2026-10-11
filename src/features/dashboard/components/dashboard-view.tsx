@@ -4,6 +4,7 @@ import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
+  ClipboardList,
   GraduationCap,
   Target,
   Timer,
@@ -21,9 +22,10 @@ import { LiveClock } from "@/features/dashboard/components/live-clock";
 import type { DashboardData } from "@/features/dashboard/queries";
 import { formatCurrency, minutesToHours, relativeDay } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { appDateParts } from "@/lib/date";
 
 function greeting() {
-  const hour = new Date().getHours();
+  const hour = appDateParts().hour;
   if (hour < 6) return "Xayrli tun";
   if (hour < 12) return "Xayrli tong";
   if (hour < 18) return "Xayrli kun";
@@ -57,7 +59,7 @@ export function DashboardView({
         <LiveClock />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
           icon={Timer}
           label="Study time (bugun)"
@@ -74,9 +76,20 @@ export function DashboardView({
         <StatCard
           icon={CheckCircle2}
           label="Davomat"
-          value={`${data.attendance}%`}
-          hint={`${data.completedHomework}/${data.totalHomework} vazifa`}
+          value={data.attendanceRate === null ? "—" : `${data.attendanceRate}%`}
+          hint={
+            data.attendanceTotal > 0
+              ? `${data.attendanceTotal} yozuv · ${data.attendanceMissed} kelmagan`
+              : "Yozuvlar yo'q"
+          }
           accent="text-emerald-600 bg-emerald-500/10 dark:text-emerald-400"
+        />
+        <StatCard
+          icon={ClipboardList}
+          label="Uy vazifalari"
+          value={`${data.homeworkCompletion}%`}
+          hint={`${data.homeworkCompleted}/${data.homeworkTotal} bajarilgan`}
+          accent="text-sky-600 bg-sky-500/10 dark:text-sky-400"
         />
         <StatCard
           icon={Wallet}
@@ -159,10 +172,10 @@ export function DashboardView({
                   <Link
                     key={`${item.type}-${item.id}`}
                     href={item.href}
-                    className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:border-primary/40"
+                    className="flex flex-col items-start gap-2 rounded-lg border border-border p-3 transition-colors hover:border-primary/40 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{item.title}</p>
+                      <p className="text-sm font-medium sm:truncate">{item.title}</p>
                       <p className="text-xs text-muted-foreground">
                         {relativeDay(item.deadline)} ·{" "}
                         {item.type === "TASK" ? "Vazifa" : "Vazifa (o'qish)"}

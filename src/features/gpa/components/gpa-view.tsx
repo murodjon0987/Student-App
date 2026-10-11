@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
+  CalendarRange,
   GraduationCap,
   Pencil,
   Plus,
@@ -25,46 +26,40 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { formatNumber } from "@/lib/format";
 import { deleteGrade } from "@/features/gpa/actions";
+import type { gradeSummary } from "@/lib/list-query";
 import {
   GradeFormDialog,
   type GradeItem,
 } from "@/features/gpa/components/grade-form-dialog";
+import { SemesterManagerDialog } from "@/features/gpa/components/semester-manager-dialog";
 
 interface Props {
   grades: GradeItem[];
+  summary: ReturnType<typeof gradeSummary>;
+  semesters: {
+    id: string;
+    name: string;
+    startDate: Date | string | null;
+    endDate: Date | string | null;
+  }[];
+  activeSemester: string;
+  filters?: React.ReactNode;
 }
 
-function round2(value: number) {
-  return Math.round(value * 100) / 100;
-}
-
-export function GpaView({ grades }: Props) {
+export function GpaView({
+  grades,
+  summary,
+  semesters,
+  activeSemester,
+  filters,
+}: Props) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
+  const [semesterOpen, setSemesterOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<GradeItem | null>(null);
 
-  const totalCredits = React.useMemo(
-    () => grades.reduce((sum, grade) => sum + grade.credit, 0),
-    [grades]
-  );
-
-  const gpa = React.useMemo(() => {
-    if (totalCredits <= 0) return 0;
-    const weighted = grades.reduce(
-      (sum, grade) => sum + Number(grade.grade) * grade.credit,
-      0
-    );
-    return round2(weighted / totalCredits);
-  }, [grades, totalCredits]);
-
-  const average = React.useMemo(() => {
-    if (grades.length === 0) return 0;
-    const sum = grades.reduce(
-      (total, grade) => total + Number(grade.grade),
-      0
-    );
-    return round2(sum / grades.length);
-  }, [grades]);
+  const { totalCredits, gpa, average } = summary;
+  const activeSemesterName = semesters.find((s) => s.id === activeSemester)?.name;
 
   function openCreate() {
     setEditing(null);
@@ -80,8 +75,15 @@ export function GpaView({ grades }: Props) {
     <div className="space-y-6">
       <PageHeader
         title="GPA kalkulyator"
-        description="Baholaringiz asosida GPA va kreditlaringizni hisoblang."
+        description={
+          activeSemesterName
+            ? `${activeSemesterName} bo'yicha natijalar.`
+            : "Baholaringiz asosida GPA va kreditlaringizni hisoblang."
+        }
       >
+        <Button variant="outline" onClick={() => setSemesterOpen(true)}>
+          <CalendarRange className="size-4" /> Semestrlar
+        </Button>
         <Button onClick={openCreate}>
           <Plus className="size-4" /> Baho qo'shish
         </Button>
@@ -131,6 +133,8 @@ export function GpaView({ grades }: Props) {
         </Card>
       </div>
 
+      {filters}
+
       {grades.length === 0 ? (
         <EmptyState
           icon={GraduationCap}
@@ -145,7 +149,7 @@ export function GpaView({ grades }: Props) {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <div className="flex items-center gap-2 border-b border-border px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:gap-3 sm:px-5">
+            <div className="hidden items-center gap-2 border-b border-border px-4 py-3 text-xs font-medium uppercase tracking-wide text-muted-foreground sm:flex sm:gap-3 sm:px-5">
               <span className="flex-1">Fan</span>
               <span className="w-14 text-center sm:w-20">Kredit</span>
               <span className="w-12 text-center sm:w-16">Baho</span>
@@ -155,22 +159,24 @@ export function GpaView({ grades }: Props) {
               {grades.map((grade) => (
                 <div
                   key={grade.id}
-                  className="group flex items-center gap-2 px-4 py-3 sm:gap-3 sm:px-5"
+                  className="group flex flex-wrap items-center gap-2 px-4 py-3 sm:flex-nowrap sm:gap-3 sm:px-5"
                 >
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                  <span className="min-w-0 w-full text-sm font-medium sm:w-auto sm:flex-1 sm:truncate">
                     {grade.subjectName}
                   </span>
-                  <span className="w-14 text-center text-sm tabular-nums text-muted-foreground sm:w-20">
+                  <span className="text-sm tabular-nums text-muted-foreground sm:w-20 sm:text-center">
+                    <span className="mr-1 text-xs sm:hidden">Kredit:</span>
                     {formatNumber(grade.credit, 1)}
                   </span>
-                  <span className="flex w-12 justify-center sm:w-16">
+                  <span className="flex items-center gap-1 sm:w-16 sm:justify-center">
+                    <span className="text-xs text-muted-foreground sm:hidden">Baho:</span>
                     <Badge
                       variant={Number(grade.grade) >= 4 ? "success" : "secondary"}
                     >
                       {grade.grade}
                     </Badge>
                   </span>
-                  <span className="flex w-[76px] items-center justify-end gap-1 sm:w-20">
+                  <span className="ml-auto flex shrink-0 items-center justify-end gap-1 sm:w-20">
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -203,7 +209,18 @@ export function GpaView({ grades }: Props) {
         </Card>
       )}
 
-      <GradeFormDialog open={open} onOpenChange={setOpen} initial={editing} />
+      <GradeFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        initial={editing}
+        semesters={semesters}
+        defaultSemesterId={activeSemester || null}
+      />
+      <SemesterManagerDialog
+        open={semesterOpen}
+        onOpenChange={setSemesterOpen}
+        semesters={semesters}
+      />
     </div>
   );
 }

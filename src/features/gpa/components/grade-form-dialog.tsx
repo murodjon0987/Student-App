@@ -37,15 +37,24 @@ export interface GradeItem {
   subjectName: string;
   credit: number;
   grade: string;
+  semesterId: string | null;
 }
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initial?: GradeItem | null;
+  semesters: { id: string; name: string }[];
+  defaultSemesterId?: string | null;
 }
 
-export function GradeFormDialog({ open, onOpenChange, initial }: Props) {
+export function GradeFormDialog({
+  open,
+  onOpenChange,
+  initial,
+  semesters,
+  defaultSemesterId,
+}: Props) {
   const router = useRouter();
 
   const {
@@ -61,6 +70,7 @@ export function GradeFormDialog({ open, onOpenChange, initial }: Props) {
       subjectName: "",
       credit: 3,
       grade: GRADE_OPTIONS[0],
+      semesterId: null,
     },
   });
 
@@ -72,17 +82,20 @@ export function GradeFormDialog({ open, onOpenChange, initial }: Props) {
             id: initial.id,
             subjectName: initial.subjectName,
             credit: initial.credit,
-            grade: initial.grade,
+            grade: gradeSchema.shape.grade.safeParse(initial.grade).data ?? GRADE_OPTIONS[0],
+            semesterId: initial.semesterId,
           }
         : {
             subjectName: "",
             credit: 3,
             grade: GRADE_OPTIONS[0],
+            semesterId: defaultSemesterId ?? null,
           }
     );
-  }, [open, initial, reset]);
+  }, [open, initial, reset, defaultSemesterId]);
 
   const grade = watch("grade");
+  const semesterId = watch("semesterId");
 
   async function onSubmit(values: GradeInput) {
     const result = await saveGrade(values);
@@ -141,7 +154,10 @@ export function GradeFormDialog({ open, onOpenChange, initial }: Props) {
               <Label>Baho</Label>
               <Select
                 value={grade}
-                onValueChange={(value) => setValue("grade", value)}
+                onValueChange={(value) => {
+                  const parsed = gradeSchema.shape.grade.safeParse(value);
+                  if (parsed.success) setValue("grade", parsed.data);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Baho tanlang" />
@@ -160,6 +176,28 @@ export function GradeFormDialog({ open, onOpenChange, initial }: Props) {
                 </p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Semestr</Label>
+            <Select
+              value={semesterId ?? "none"}
+              onValueChange={(value) =>
+                setValue("semesterId", value === "none" ? null : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Semestr tanlang" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Tanlanmagan</SelectItem>
+                {semesters.map((semester) => (
+                  <SelectItem key={semester.id} value={semester.id}>
+                    {semester.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <DialogFooter>

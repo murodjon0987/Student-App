@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
+import { redactProviderTokens } from "./content";
 
 export interface ChatListItem {
   id: string;
@@ -27,12 +28,13 @@ export async function getChats(): Promise<ChatListItem[]> {
 
 export async function getChat(id: string) {
   const { userId } = await verifySession();
-  return prisma.chat.findFirst({
+  const chat = await prisma.chat.findFirst({
     where: { id, userId },
     include: {
       messages: { orderBy: { createdAt: "asc" } },
     },
   });
+  return chat ? { ...chat, messages: chat.messages.map((message) => ({ ...message, content: redactProviderTokens(message.content) })) } : null;
 }
 
 export async function getChatMessages(id: string): Promise<ChatMessageItem[]> {
@@ -43,9 +45,10 @@ export async function getChatMessages(id: string): Promise<ChatMessageItem[]> {
   });
   if (!chat) return [];
 
-  return prisma.chatMessage.findMany({
+  const messages = await prisma.chatMessage.findMany({
     where: { chatId: id },
     orderBy: { createdAt: "asc" },
     select: { id: true, role: true, content: true, createdAt: true },
   });
+  return messages.map((message) => ({ ...message, content: redactProviderTokens(message.content) }));
 }

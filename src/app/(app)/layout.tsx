@@ -1,6 +1,7 @@
 import { getCurrentUser, verifySession } from "@/lib/auth/dal";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/layout/app-shell";
+import { FocusProvider } from "@/features/focus/components/focus-provider";
 
 export default async function AppLayout({
   children,
@@ -17,7 +18,7 @@ export default async function AppLayout({
   ]);
 
   return (
-    <AppShell
+    <FocusProvider key={userId} userId={userId}><AppShell
       user={{
         id: user.id,
         name: user.name,
@@ -29,6 +30,6 @@ export default async function AppLayout({
       }}
     >
       {children}
-    </AppShell>
+    </AppShell></FocusProvider>
   );
 }

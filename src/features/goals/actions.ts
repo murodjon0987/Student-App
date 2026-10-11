@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { parseAcademicDateTime } from "@/lib/date";
 
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
@@ -13,7 +14,7 @@ import {
 
 function parseTargetDate(value?: string | null) {
   if (!value) return null;
-  const date = new Date(value);
+  const date = parseAcademicDateTime(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 

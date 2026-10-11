@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { saveNote } from "@/features/notes/actions";
+import { AttachmentManager } from "@/features/attachments/components/attachment-manager";
 import { noteSchema, type NoteInput } from "@/features/notes/schema";
 
 export interface NoteItem {
@@ -107,7 +108,7 @@ export function NoteFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {initial ? "Eslatmani tahrirlash" : "Yangi eslatma"}
@@ -180,6 +181,8 @@ export function NoteFormDialog({
             </Button>
           </DialogFooter>
         </form>
+
+        {initial?.id && <AttachmentManager parent={{ noteId: initial.id }} />}
       </DialogContent>
     </Dialog>
   );

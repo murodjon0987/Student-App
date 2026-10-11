@@ -32,7 +32,7 @@ export function ChatInput({ onSend, onStop, streaming }: Props) {
   }
 
   return (
-    <div className="border-t border-border bg-background/80 p-3 backdrop-blur sm:p-4">
+    <div className="shrink-0 border-t border-border bg-background/80 p-2 backdrop-blur sm:p-4">
       <div
         className={cn(
           "mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring/30",
@@ -69,7 +69,8 @@ export function ChatInput({ onSend, onStop, streaming }: Props) {
               ? "Rasm tavsifini yozing... (masalan: kitob o'qiyotgan mushuk)"
               : "Savolingizni yozing... (Shift+Enter — yangi qator)"
           }
-          className="max-h-[180px] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+          aria-label="Xabar"
+          className="max-h-[180px] min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-base outline-none placeholder:text-muted-foreground sm:text-sm"
         />
         {streaming ? (
           <Button

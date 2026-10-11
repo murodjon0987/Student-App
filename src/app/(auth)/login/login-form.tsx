@@ -73,6 +73,7 @@ export function LoginForm({
       </div>
 
       <form action={action} className="space-y-4">
+        <input type="hidden" name="next" value={next ?? "/dashboard"} />
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <Input

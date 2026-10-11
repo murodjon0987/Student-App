@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
 
-import { formatUzFullDate } from "@/lib/format";
+import { formatDate, formatUzFullDate } from "@/lib/format";
 
 export function LiveClock() {
   const [now, setNow] = React.useState<Date | null>(null);
@@ -21,7 +20,7 @@ export function LiveClock() {
   return (
     <div className="text-right">
       <p className="font-mono text-2xl font-semibold tabular-nums">
-        {format(now, "HH:mm:ss")}
+        {formatDate(now, "HH:mm:ss")}
       </p>
       <p className="text-xs text-muted-foreground">{formatUzFullDate(now)}</p>
     </div>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
+import { ownsSubject } from "@/lib/ownership";
 import { verifySession } from "@/lib/auth/dal";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { noteSchema, type NoteInput } from "./schema";
@@ -20,6 +21,8 @@ export async function saveNote(
   const data = parsed.data;
 
   try {
+    if (!(await ownsSubject(userId, data.subjectId))) return fail("Fan topilmadi");
+
     if (data.id) {
       const existing = await prisma.note.findFirst({
         where: { id: data.id, userId },
@@ -27,7 +30,7 @@ export async function saveNote(
       if (!existing) return fail("Eslatma topilmadi");
 
       await prisma.note.update({
-        where: { id: data.id },
+        where: { id: data.id, userId },
         data: {
           title: data.title,
           content: data.content,
@@ -58,11 +61,11 @@ export async function saveNote(
 export async function deleteNote(id: string): Promise<ActionResult> {
   const { userId } = await verifySession();
 
-  const existing = await prisma.note.findFirst({ where: { id, userId } });
-  if (!existing) return fail("Eslatma topilmadi");
-
   try {
-    await prisma.note.delete({ where: { id } });
+    const existing = await prisma.note.findFirst({ where: { id, userId } });
+    if (!existing) return fail("Eslatma topilmadi");
+
+    await prisma.note.delete({ where: { id, userId } });
     revalidatePath("/", "layout");
     return ok();
   } catch {

@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
+import { deleteSession } from "@/lib/auth/session";
+import { deleteUserContent } from "@/lib/user-data";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { settingsSchema, type SettingsInput } from "./schema";
 
@@ -49,23 +51,7 @@ export async function deleteAllData(): Promise<ActionResult> {
   const { userId } = await verifySession();
 
   try {
-    await prisma.$transaction([
-      prisma.attachment.deleteMany({ where: { userId } }),
-      prisma.task.deleteMany({ where: { userId } }),
-      prisma.homework.deleteMany({ where: { userId } }),
-      prisma.note.deleteMany({ where: { userId } }),
-      prisma.exam.deleteMany({ where: { userId } }),
-      prisma.event.deleteMany({ where: { userId } }),
-      prisma.expense.deleteMany({ where: { userId } }),
-      prisma.budget.deleteMany({ where: { userId } }),
-      prisma.goal.deleteMany({ where: { userId } }),
-      prisma.studySession.deleteMany({ where: { userId } }),
-      prisma.notification.deleteMany({ where: { userId } }),
-      prisma.material.deleteMany({ where: { userId } }),
-      prisma.grade.deleteMany({ where: { userId } }),
-      prisma.schedule.deleteMany({ where: { userId } }),
-      prisma.subject.deleteMany({ where: { userId } }),
-    ]);
+    await deleteUserContent(userId);
 
     revalidatePath("/", "layout");
     return ok();
@@ -78,6 +64,7 @@ export async function deleteAccount(): Promise<void> {
   const { userId } = await verifySession();
 
   await prisma.user.delete({ where: { id: userId } });
+  await deleteSession();
 
   redirect("/login");
 }

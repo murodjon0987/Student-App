@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Student App",
     description:
       "Studentlar uchun o'qish, vaqt, vazifa, imtihon, xarajat va shaxsiy rivojlanishni boshqarish platformasi.",
-    start_url: "/dashboard",
+    start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#4f46e5",

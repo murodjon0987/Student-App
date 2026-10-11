@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
+import { localDateKey } from "@/lib/date";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -55,7 +55,7 @@ export function ExpenseFormDialog({ open, onOpenChange }: Props) {
       amount: undefined as unknown as number,
       category: "FOOD",
       description: "",
-      date: format(new Date(), "yyyy-MM-dd"),
+      date: localDateKey(),
     });
   }, [open, reset]);
 

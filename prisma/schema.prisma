@@ -22,6 +22,7 @@ model User {
   name         String
   avatarUrl    String?
   role         String    @default("STUDENT")
+  sessionVersion Int     @default(0)
   emailVerifiedAt DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -48,8 +49,61 @@ model User {
   generatedImages   GeneratedImage[]
   housingListings   HousingListing[]
   housingFavorites  HousingFavorite[]
+  ownedGroups       StudentGroup[]
+  groupMemberships  GroupMember[]
+  groupPosts        GroupPost[]
+  flashcardDecks    FlashcardDeck[]
+  quizAttempts      QuizAttempt[]
+  studyPlans        StudyPlan[]
+  groupReplies      GroupReply[]
+  opportunities     Opportunity[]
+  savedOpportunities SavedOpportunity[]
+  toolReminders     ToolReminder[]
+  attendances       Attendance[]
+  semesters         Semester[]
 
   @@index([email])
+}
+
+model StudentGroup {
+  id         String @id @default(cuid())
+  name       String
+  university String
+  inviteCode String @unique
+  ownerId    String
+  owner      User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  members    GroupMember[]
+  posts      GroupPost[]
+  @@index([ownerId])
+}
+
+model GroupMember {
+  groupId String
+  userId  String
+  group   StudentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user    User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+  @@id([groupId, userId])
+  @@index([userId])
+}
+
+model GroupPost {
+  id        String @id @default(cuid())
+  groupId   String
+  authorId  String
+  group     StudentGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author    User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  kind      String
+  title     String
+  content   String
+  url       String?
+  subject   String @default("")
+  topic     String @default("")
+  replies   GroupReply[]
+  createdAt DateTime @default(now())
+  @@index([groupId, createdAt])
+  @@index([authorId])
 }
 
 model StudentProfile {
@@ -83,13 +137,14 @@ model Subject {
   color     String   @default("#6366f1")
   createdAt DateTime @default(now())
 
-  schedules Schedule[]
-  tasks     Task[]
-  homeworks Homework[]
-  notes     Note[]
-  exams     Exam[]
-  materials Material[]
-  sessions  StudySession[]
+  schedules   Schedule[]
+  tasks       Task[]
+  homeworks   Homework[]
+  notes       Note[]
+  exams       Exam[]
+  materials   Material[]
+  sessions    StudySession[]
+  attendances Attendance[]
 
   @@index([userId])
 }
@@ -108,6 +163,8 @@ model Schedule {
   endTime   String // "10:30"
   color     String   @default("#6366f1")
   createdAt DateTime @default(now())
+
+  attendances Attendance[]
 
   @@index([userId, dayOfWeek])
 }
@@ -182,8 +239,126 @@ model Exam {
   description  String?
   prepProgress Int      @default(0)
   createdAt    DateTime @default(now())
+  studyPlan    StudyPlan?
 
   @@index([userId, date])
+}
+
+model FlashcardDeck {
+  id        String @id @default(cuid())
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  subject   String @default("")
+  createdAt DateTime @default(now())
+  cards     Flashcard[]
+  attempts  QuizAttempt[]
+  @@index([userId, createdAt])
+}
+
+model Flashcard {
+  id           String @id @default(cuid())
+  deckId       String
+  deck         FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  question     String
+  answer       String
+  distractors  String[] @default([])
+  dueAt        DateTime @default(now())
+  intervalDays Int @default(0)
+  repetitions  Int @default(0)
+  lastReviewedAt DateTime?
+  @@index([deckId, dueAt])
+}
+
+model QuizAttempt {
+  id        String @id @default(cuid())
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deckId    String
+  deck      FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  correct   Int
+  total     Int
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+}
+
+model StudyPlan {
+  id           String @id @default(cuid())
+  userId       String
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  examId       String @unique
+  exam         Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  dailyMinutes Int
+  topics       Json
+  tasks        StudyPlanTask[]
+  createdAt    DateTime @default(now())
+  @@index([userId])
+}
+
+model StudyPlanTask {
+  id        String @id @default(cuid())
+  planId    String
+  plan      StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  topic     String
+  minutes   Int
+  date      DateTime
+  done      Boolean @default(false)
+  @@index([planId, date])
+}
+
+model GroupReply {
+  id        String @id @default(cuid())
+  postId    String
+  post      GroupPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String
+  accepted  Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@index([postId, createdAt])
+  @@index([authorId])
+}
+
+model Opportunity {
+  id          String @id @default(cuid())
+  userId      String
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  organization String
+  kind        String
+  field       String
+  minCourse   Int @default(1)
+  maxCourse   Int @default(6)
+  language    String
+  requirements String
+  url         String
+  deadline    DateTime
+  verified    Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  saves       SavedOpportunity[]
+  @@index([deadline, kind])
+  @@index([userId])
+}
+
+model SavedOpportunity {
+  userId        String
+  opportunityId String
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  @@id([userId, opportunityId])
+  @@index([opportunityId])
+}
+
+model ToolReminder {
+  id        String @id @default(cuid())
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key       String
+  createdAt DateTime @default(now())
+  @@unique([userId, key])
+  @@index([createdAt])
 }
 
 model Event {
@@ -224,7 +399,9 @@ model Attachment {
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
-  url        String
+  url        String?
+  data       Bytes?
+  mimeType   String?
   type       String?
   size       Int?
   homeworkId String?
@@ -236,6 +413,32 @@ model Attachment {
   createdAt  DateTime  @default(now())
 
   @@index([userId])
+  @@index([homeworkId])
+  @@index([noteId])
+  @@index([materialId])
+}
+
+// ---------------------------------------------------------------------------
+// Attendance (darslarga qatnashish)
+// ---------------------------------------------------------------------------
+
+model Attendance {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId  String?
+  subject    Subject?  @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  scheduleId String?
+  schedule   Schedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  date       DateTime
+  status     String    @default("PRESENT") // PRESENT | ABSENT | LATE | EXCUSED
+  note       String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, status])
+  @@index([userId, subjectId])
 }
 
 // ---------------------------------------------------------------------------
@@ -347,9 +550,27 @@ model Grade {
   subjectName String
   credit      Float    @default(3)
   grade       String
+  semesterId  String?
+  semester    Semester? @relation(fields: [semesterId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
 
   @@index([userId])
+  @@index([userId, semesterId])
+}
+
+model Semester {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  startDate DateTime?
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+
+  grades Grade[]
+
+  @@unique([userId, name])
+  @@index([userId, createdAt])
 }
 
 model PasswordResetToken {
@@ -362,6 +583,15 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+}
+
+// Shared by all server instances; expired windows can be deleted safely.
+model RequestRateLimit {
+  key      String   @id
+  count    Int      @default(1)
+  resetsAt DateTime
+
+  @@index([resetsAt])
 }
 
 // ---------------------------------------------------------------------------

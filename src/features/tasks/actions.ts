@@ -1,15 +1,17 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { parseAcademicDateTime } from "@/lib/date";
 
 import { prisma } from "@/lib/prisma";
+import { ownsSubject } from "@/lib/ownership";
 import { verifySession } from "@/lib/auth/dal";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { taskSchema, type TaskInput, type TaskStatus } from "./schema";
 
 function parseDeadline(value?: string | null) {
   if (!value) return null;
-  const date = new Date(value);
+  const date = parseAcademicDateTime(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -28,6 +30,8 @@ export async function saveTask(
   const completedAt = data.status === "COMPLETED" ? new Date() : null;
 
   try {
+    if (!(await ownsSubject(userId, data.subjectId))) return fail("Fan topilmadi");
+
     if (data.id) {
       const existing = await prisma.task.findFirst({
         where: { id: data.id, userId },
@@ -35,7 +39,7 @@ export async function saveTask(
       if (!existing) return fail("Vazifa topilmadi");
 
       await prisma.task.update({
-        where: { id: data.id },
+        where: { id: data.id, userId },
         data: {
           title: data.title,
           description: data.description ?? null,
@@ -80,12 +84,16 @@ export async function setTaskStatus(
 ): Promise<ActionResult> {
   const { userId } = await verifySession();
 
-  const existing = await prisma.task.findFirst({ where: { id, userId } });
-  if (!existing) return fail("Vazifa topilmadi");
+  if (!taskSchema.shape.status.safeParse(status).success) {
+    return fail("Vazifa holati noto'g'ri");
+  }
 
   try {
+    const existing = await prisma.task.findFirst({ where: { id, userId } });
+    if (!existing) return fail("Vazifa topilmadi");
+
     await prisma.task.update({
-      where: { id },
+      where: { id, userId },
       data: {
         status,
         completedAt: status === "COMPLETED" ? new Date() : null,
@@ -101,11 +109,11 @@ export async function setTaskStatus(
 export async function deleteTask(id: string): Promise<ActionResult> {
   const { userId } = await verifySession();
 
-  const existing = await prisma.task.findFirst({ where: { id, userId } });
-  if (!existing) return fail("Vazifa topilmadi");
-
   try {
-    await prisma.task.delete({ where: { id } });
+    const existing = await prisma.task.findFirst({ where: { id, userId } });
+    if (!existing) return fail("Vazifa topilmadi");
+
+    await prisma.task.delete({ where: { id, userId } });
     revalidatePath("/", "layout");
     return ok();
   } catch {

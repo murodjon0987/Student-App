@@ -192,7 +192,7 @@ export function ListingDetail({ listing }: { listing: ListingDetailData }) {
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-5">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">

@@ -8,8 +8,17 @@ export type HomeworkStatus = (typeof HOMEWORK_STATUSES)[number];
 
 export const homeworkSchema = z.object({
   id: z.string().optional(),
-  title: z.string().min(1, { error: "Vazifa nomini kiriting" }).trim(),
-  description: z.string().trim().optional().nullable(),
+  title: z
+    .string()
+    .trim()
+    .min(1, { error: "Vazifa nomini kiriting" })
+    .max(200, { error: "Nom 200 ta belgidan oshmasligi kerak" }),
+  description: z
+    .string()
+    .trim()
+    .max(2000, { error: "Tavsif 2000 ta belgidan oshmasligi kerak" })
+    .optional()
+    .nullable(),
   subjectId: z.string().optional().nullable(),
   priority: z.enum(HOMEWORK_PRIORITIES),
   status: z.enum(HOMEWORK_STATUSES),

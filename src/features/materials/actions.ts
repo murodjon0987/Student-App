@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
+import { ownsSubject } from "@/lib/ownership";
 import { verifySession } from "@/lib/auth/dal";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { materialSchema, type MaterialInput } from "./schema";
@@ -22,6 +23,8 @@ export async function saveMaterial(
   const description = data.description || null;
 
   try {
+    if (!(await ownsSubject(userId, data.subjectId))) return fail("Fan topilmadi");
+
     if (data.id) {
       const existing = await prisma.material.findFirst({
         where: { id: data.id, userId },
@@ -29,7 +32,7 @@ export async function saveMaterial(
       if (!existing) return fail("Material topilmadi");
 
       await prisma.material.update({
-        where: { id: data.id },
+        where: { id: data.id, userId },
         data: {
           title: data.title,
           category: data.category,
@@ -66,7 +69,7 @@ export async function deleteMaterial(id: string): Promise<ActionResult> {
   if (!existing) return fail("Material topilmadi");
 
   try {
-    await prisma.material.delete({ where: { id } });
+    await prisma.material.delete({ where: { id, userId } });
     revalidatePath("/", "layout");
     return ok();
   } catch {

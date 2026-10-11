@@ -3,6 +3,8 @@ import { jwtVerify } from "jose";
 
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth/session";
+import { getSessionKey } from "@/lib/auth/token";
+import { safeNextPath } from "@/lib/auth/security";
 import {
   getGoogleClient,
   GOOGLE_TOKEN_URL,
@@ -12,11 +14,12 @@ import {
 
 export async function GET(request: NextRequest) {
   const origin = request.nextUrl.origin;
-  const fail = (reason: string, detail?: string) => {
+  const fail = (reason: string) => {
     const url = new URL("/login", origin);
     url.searchParams.set("error", reason);
-    if (detail) url.searchParams.set("detail", detail.slice(0, 300));
-    return NextResponse.redirect(url);
+    const response = NextResponse.redirect(url);
+    response.cookies.delete("google_oauth_state");
+    return response;
   };
 
   try {
@@ -35,12 +38,10 @@ export async function GET(request: NextRequest) {
     try {
       const { payload } = await jwtVerify(
         state,
-        new TextEncoder().encode(process.env.SESSION_SECRET),
+        getSessionKey(),
         { algorithms: ["HS256"] }
       );
-      if (typeof payload.next === "string" && payload.next.startsWith("/")) {
-        next = payload.next;
-      }
+      next = safeNextPath(payload.next);
     } catch {
       return fail("google_state");
     }
@@ -55,37 +56,34 @@ export async function GET(request: NextRequest) {
         redirect_uri: googleRedirectUri(origin),
         grant_type: "authorization_code",
       }),
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!tokenResponse.ok) {
-      const text = await tokenResponse.text().catch(() => "");
-      console.error("[google callback] token exchange failed", text);
-      return fail("google_token", text);
+      console.error("[google callback] token exchange failed", tokenResponse.status);
+      return fail("google_token");
     }
     const tokens = (await tokenResponse.json()) as { id_token?: string };
-    if (!tokens.id_token) return fail("google_token", "id_token yo'q");
+    if (!tokens.id_token) return fail("google_token");
 
     let profile;
     try {
       profile = await verifyGoogleIdToken(tokens.id_token, client.clientId);
     } catch (error) {
       console.error("[google callback] id_token verify failed", error);
-      return fail(
-        "google_token",
-        error instanceof Error ? error.message : "id_token tekshirilmadi"
-      );
+      return fail("google_token");
     }
 
     const email = profile.email?.toLowerCase();
     const googleId = profile.sub;
-    if (!email || !googleId) return fail("google_email");
+    if (!email || !googleId || profile.email_verified !== true) return fail("google_email");
 
     const name = profile.name ?? email.split("@")[0] ?? "Student";
     const picture = profile.picture ?? null;
 
-    const existing = await prisma.user.findFirst({
-      where: { OR: [{ googleId }, { email }] },
-    });
+    const existing = await prisma.user.findUnique({ where: { googleId } }) ??
+      await prisma.user.findUnique({ where: { email } });
+    if (existing?.googleId && existing.googleId !== googleId) return fail("google_email");
 
     const user = existing
       ? await prisma.user.update({
@@ -114,9 +112,6 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("[google callback] error", error);
-    return fail(
-      "google_failed",
-      error instanceof Error ? error.message : "kutilmagan xatolik"
-    );
+    return fail("google_failed");
   }
 }

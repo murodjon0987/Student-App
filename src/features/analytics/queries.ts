@@ -1,16 +1,6 @@
 import "server-only";
 
-import {
-  endOfDay,
-  endOfMonth,
-  endOfWeek,
-  format,
-  startOfDay,
-  startOfMonth,
-  startOfWeek,
-  subDays,
-  subMonths,
-} from "date-fns";
+import { DAY_MS, dayRange, weekRange, monthRange, monthKey, localDateKey, shiftMonth } from "@/lib/date";
 
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
@@ -20,13 +10,10 @@ export async function getAnalytics() {
   const { userId } = await verifySession();
   const now = new Date();
 
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
-  const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
-  const monthStart = startOfMonth(now);
-  const monthEnd = endOfMonth(now);
-  const sixMonthsStart = startOfMonth(subMonths(now, 5));
+  const { start: todayStart, end: todayEnd } = dayRange(now);
+  const { start: weekStart, end: weekEnd } = weekRange(now);
+  const { start: monthStart, end: monthEnd } = monthRange(monthKey(now));
+  const sixMonthsStart = monthRange(shiftMonth(monthKey(now), -5)).start;
 
   const [sessions, subjects, completedTotal, completedThisWeek, goals] =
     await Promise.all([
@@ -67,26 +54,24 @@ export async function getAnalytics() {
 
   const dailyMap = new Map<string, number>();
   for (const session of sessions) {
-    const key = format(session.startedAt, "yyyy-MM-dd");
+    const key = localDateKey(session.startedAt);
     dailyMap.set(key, (dailyMap.get(key) ?? 0) + session.durationMin);
   }
   const last7Days = Array.from({ length: 7 }, (_, index) => {
-    const date = subDays(now, 6 - index);
-    const key = format(date, "yyyy-MM-dd");
+    const key = localDateKey(new Date(now.getTime() - (6 - index) * DAY_MS));
     return { date: key, minutes: dailyMap.get(key) ?? 0 };
   });
 
   const monthlyMap = new Map<string, number>();
   for (const session of sessions) {
-    const key = format(session.startedAt, "yyyy-MM");
+    const key = monthKey(session.startedAt);
     monthlyMap.set(key, (monthlyMap.get(key) ?? 0) + session.durationMin);
   }
   const last6Months = Array.from({ length: 6 }, (_, index) => {
-    const date = subMonths(now, 5 - index);
-    const key = format(date, "yyyy-MM");
+    const key = shiftMonth(monthKey(now), index - 5);
     return {
       month: key,
-      label: MONTHS_UZ[date.getMonth()],
+      label: MONTHS_UZ[Number(key.slice(5)) - 1],
       minutes: monthlyMap.get(key) ?? 0,
     };
   });

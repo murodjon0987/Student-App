@@ -51,25 +51,25 @@ export async function buildStudentContext(userId: string): Promise<string> {
     prisma.schedule.findMany({
       where: { userId },
       orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
-      include: { subject: { select: { name: true } } },
+      include: { subject: { where: { userId }, select: { name: true } } },
     }),
     prisma.task.findMany({
       where: { userId, status: { not: "COMPLETED" } },
       orderBy: [{ deadline: "asc" }],
       take: MAX_ITEMS,
-      include: { subject: { select: { name: true } } },
+      include: { subject: { where: { userId }, select: { name: true } } },
     }),
     prisma.homework.findMany({
       where: { userId, status: { not: "COMPLETED" } },
       orderBy: [{ deadline: "asc" }],
       take: MAX_ITEMS,
-      include: { subject: { select: { name: true } } },
+      include: { subject: { where: { userId }, select: { name: true } } },
     }),
     prisma.exam.findMany({
       where: { userId, date: { gte: now } },
       orderBy: { date: "asc" },
       take: MAX_ITEMS,
-      include: { subject: { select: { name: true } } },
+      include: { subject: { where: { userId }, select: { name: true } } },
     }),
     prisma.note.findMany({
       where: { userId },

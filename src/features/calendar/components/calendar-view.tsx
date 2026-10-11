@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { academicDate, localDateKey, appDateParts, shiftMonth as shiftedMonth } from "@/lib/date";
 import {
   CalendarDays,
   ChevronLeft,
@@ -32,7 +32,7 @@ interface Props {
 const MAX_CHIPS = 3;
 
 function keyOf(value: Date | string) {
-  return format(new Date(value), "yyyy-MM-dd");
+  return localDateKey(value);
 }
 
 export function CalendarView({ data }: Props) {
@@ -53,10 +53,10 @@ export function CalendarView({ data }: Props) {
       Array.from({ length: totalCells }, (_, index) => {
         const dayNumber = index - firstWeekday + 1;
         if (dayNumber < 1 || dayNumber > daysInMonth) return null;
-        const date = new Date(year, monthIndex, dayNumber);
+        const date = academicDate(`${data.month}-${String(dayNumber).padStart(2, "0")}`);
         return { dayNumber, key: keyOf(date) };
       }),
-    [totalCells, firstWeekday, daysInMonth, year, monthIndex]
+    [totalCells, firstWeekday, daysInMonth, data.month]
   );
 
   const grouped = React.useMemo(() => {
@@ -71,10 +71,10 @@ export function CalendarView({ data }: Props) {
   }, [data.items]);
 
   React.useEffect(() => {
-    const now = new Date();
+    const now = appDateParts();
     setSelected(
-      now.getFullYear() === year && now.getMonth() === monthIndex
-        ? keyOf(now)
+      now.year === year && now.month === monthIndex
+        ? localDateKey()
         : null
     );
   }, [year, monthIndex]);
@@ -83,11 +83,7 @@ export function CalendarView({ data }: Props) {
   const selectedItems = selected ? grouped.get(selected) ?? [] : [];
 
   function shiftMonth(delta: number) {
-    const next = new Date(year, monthIndex + delta, 1);
-    const key = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}`;
+    const key = shiftedMonth(data.month, delta);
     startTransition(() => router.push(`/calendar?month=${key}`));
   }
 
@@ -143,15 +139,15 @@ export function CalendarView({ data }: Props) {
         </Button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="overflow-x-auto">
-          <div className="min-w-[640px] sm:min-w-0">
+          <div>
+          <div className="min-w-0">
           <div className="grid grid-cols-7 border-b border-border">
             {WEEKDAYS_UZ.map((day) => (
               <div
                 key={day}
-                className="px-2 py-2 text-center text-[11px] font-semibold uppercase text-muted-foreground"
+                className="min-w-0 px-0.5 py-2 text-center text-[10px] font-semibold uppercase text-muted-foreground sm:px-2 sm:text-[11px]"
               >
                 {day.slice(0, 3)}
               </div>
@@ -164,7 +160,7 @@ export function CalendarView({ data }: Props) {
                 return (
                   <div
                     key={`empty-${index}`}
-                    className="min-h-24 border-b border-r border-border bg-muted/20 last:border-r-0"
+                    className="min-h-14 min-w-0 border-b border-r border-border bg-muted/20 last:border-r-0 sm:min-h-24"
                   />
                 );
               }
@@ -178,8 +174,10 @@ export function CalendarView({ data }: Props) {
                   key={cell.key}
                   type="button"
                   onClick={() => setSelected(cell.key)}
+                  aria-pressed={isSelected}
+                  aria-label={`${formatUzFullDate(cell.key)}: ${items.length} ta tadbir`}
                   className={cn(
-                    "min-h-24 border-b border-r border-border p-1.5 text-left align-top transition-colors hover:bg-accent/40",
+                    "min-h-14 min-w-0 border-b border-r border-border p-1 text-left align-top transition-colors hover:bg-accent/40 sm:min-h-24 sm:p-1.5",
                     isSelected && "bg-primary/5 ring-1 ring-inset ring-primary/40"
                   )}
                 >
@@ -195,30 +193,31 @@ export function CalendarView({ data }: Props) {
                       {cell.dayNumber}
                     </span>
                     {items.length > 0 && (
-                      <span className="text-[10px] text-muted-foreground">
+                      <span className="hidden text-[10px] text-muted-foreground sm:inline">
                         {items.length}
                       </span>
                     )}
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="flex flex-wrap gap-1 sm:block sm:space-y-1">
                     {items.slice(0, MAX_CHIPS).map((item) => (
                       <span
                         key={item.id}
-                        className="flex items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-tight"
+                        className="flex min-w-0 items-center gap-1 rounded p-0.5 text-[10px] leading-tight sm:px-1 sm:py-0.5"
+                        title={item.title}
                         style={{ backgroundColor: `${item.color}1a` }}
                       >
                         <span
                           className="size-1.5 shrink-0 rounded-full"
                           style={{ backgroundColor: item.color }}
                         />
-                        <span className="truncate text-foreground">
+                        <span className="hidden min-w-0 truncate text-foreground sm:inline">
                           {item.title}
                         </span>
                       </span>
                     ))}
                     {items.length > MAX_CHIPS && (
-                      <span className="block px-1 text-[10px] text-muted-foreground">
+                      <span className="hidden px-1 text-[10px] text-muted-foreground sm:block">
                         +{items.length - MAX_CHIPS} yana
                       </span>
                     )}

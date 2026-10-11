@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Calendar,
   Clock,
@@ -40,6 +41,7 @@ import {
 
 interface Props {
   exams: ExamItem[];
+  filters: React.ReactNode;
   subjects: { id: string; name: string }[];
 }
 
@@ -88,10 +90,10 @@ function ExamCard({
 
   return (
     <Card className="transition-colors hover:border-primary/30">
-      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+      <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 sm:flex-row">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle className="truncate">{exam.title}</CardTitle>
+            <CardTitle className="sm:truncate">{exam.title}</CardTitle>
             {isPast ? (
               <Badge variant="secondary">O'tgan</Badge>
             ) : (
@@ -102,7 +104,7 @@ function ExamCard({
             <p className="mt-1 text-sm text-muted-foreground">{subjectName}</p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
           <Button variant="ghost" size="icon-sm" onClick={() => onEdit(exam)}>
             <Pencil className="size-4" />
           </Button>
@@ -127,6 +129,7 @@ function ExamCard({
       </CardHeader>
 
       <CardContent className="space-y-4">
+        {!isPast && <Button variant="outline" asChild><Link href={`/study-plans?exam=${exam.id}`}>Tayyorgarlik rejasini tuzish</Link></Button>}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Calendar className="size-3.5" />
@@ -182,7 +185,7 @@ function ExamCard({
   );
 }
 
-export function ExamsView({ exams, subjects }: Props) {
+export function ExamsView({ exams, subjects, filters }: Props) {
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<ExamItem | null>(null);
 
@@ -220,6 +223,8 @@ export function ExamsView({ exams, subjects }: Props) {
           <Plus className="size-4" /> Imtihon qo'shish
         </Button>
       </PageHeader>
+
+      {filters}
 
       {exams.length === 0 ? (
         <EmptyState

@@ -1,4 +1,6 @@
-import { format, formatDistanceToNowStrict, isToday, isTomorrow, isYesterday } from "date-fns";
+import { format, formatDistanceToNowStrict } from "date-fns";
+import { uz } from "date-fns/locale";
+import { appDateParts, DAY_MS, displayDate, localDateKey } from "./date";
 
 function groupDigits(value: string) {
   const negative = value.startsWith("-");
@@ -18,28 +20,37 @@ export function formatCurrency(amount: number, currency = "UZS") {
   return `${currency} ${formatNumber(amount, 0)}`;
 }
 
+export function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB"];
+  const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const value = bytes / 1024 ** index;
+  return `${index === 0 || value >= 10 ? Math.round(value) : value.toFixed(1)} ${units[index]}`;
+}
+
 export function formatDate(value: Date | string, pattern = "d MMM yyyy") {
-  return format(new Date(value), pattern);
+  return format(displayDate(value), pattern, { locale: uz });
 }
 
 export function formatTime(value: Date | string) {
-  return format(new Date(value), "HH:mm");
+  return formatDate(value, "HH:mm");
 }
 
 export function formatDateTime(value: Date | string) {
-  return format(new Date(value), "d MMM yyyy, HH:mm");
+  return formatDate(value, "d MMM yyyy, HH:mm");
 }
 
 export function relativeDay(value: Date | string) {
-  const date = new Date(value);
-  if (isToday(date)) return "Bugun";
-  if (isTomorrow(date)) return "Ertaga";
-  if (isYesterday(date)) return "Kecha";
-  return format(date, "d MMM");
+  const key = localDateKey(value);
+  const now = Date.now();
+  if (key === localDateKey(new Date(now))) return "Bugun";
+  if (key === localDateKey(new Date(now + DAY_MS))) return "Ertaga";
+  if (key === localDateKey(new Date(now - DAY_MS))) return "Kecha";
+  return formatDate(value, "d MMM");
 }
 
 export function timeAgo(value: Date | string) {
-  return formatDistanceToNowStrict(new Date(value), { addSuffix: true });
+  return formatDistanceToNowStrict(new Date(value), { addSuffix: true, locale: uz });
 }
 
 export function minutesToHours(minutes: number) {
@@ -80,9 +91,7 @@ export function weekdayName(dayOfWeek: number) {
 }
 
 export function formatUzFullDate(value: Date | string) {
-  const date = new Date(value);
-  const dayIndex = (date.getDay() + 6) % 7;
-  return `${WEEKDAYS_UZ[dayIndex]}, ${date.getDate()}-${
-    MONTHS_UZ[date.getMonth()]
-  } ${date.getFullYear()}`;
+  const date = appDateParts(value);
+  const dayIndex = (date.weekday + 6) % 7;
+  return `${WEEKDAYS_UZ[dayIndex]}, ${date.day}-${MONTHS_UZ[date.month]} ${date.year}`;
 }

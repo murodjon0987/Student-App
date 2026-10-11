@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { renameChatSchema, type RenameChatInput } from "./schema";
+import { redactProviderTokens } from "./content";
 
 export async function loadChatMessages(
   id: string
@@ -28,7 +29,7 @@ export async function loadChatMessages(
     messages.map((m) => ({
       id: m.id,
       role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
-      content: m.content,
+      content: redactProviderTokens(m.content),
     }))
   );
 }

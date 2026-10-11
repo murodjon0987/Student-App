@@ -32,9 +32,10 @@ export function ConfirmDialog({
   onConfirm,
 }: ConfirmDialogProps) {
   const [pending, setPending] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
 
   return (
-    <AlertDialog>
+    <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -52,6 +53,7 @@ export function ConfirmDialog({
               setPending(true);
               try {
                 await onConfirm();
+                setOpen(false);
               } finally {
                 setPending(false);
               }

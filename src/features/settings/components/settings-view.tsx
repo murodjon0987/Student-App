@@ -71,8 +71,6 @@ interface Props {
 const LANGUAGE_OPTIONS: { value: SettingsInput["language"]; label: string }[] =
   [
     { value: "uz", label: "O'zbekcha" },
-    { value: "en", label: "English" },
-    { value: "ru", label: "Русский" },
   ];
 
 const THEME_OPTIONS: {
@@ -179,10 +177,11 @@ export function SettingsView({ email, profile, pushEnabled }: Props) {
             <CardTitle className="flex items-center gap-2 text-base">
               <Globe className="size-4 text-muted-foreground" /> Til
             </CardTitle>
-            <CardDescription>Interfeys tilini tanlang.</CardDescription>
+            <CardDescription>Hozircha interfeys faqat o&apos;zbek tilida mavjud.</CardDescription>
           </CardHeader>
           <CardContent className="max-w-xs">
             <Select
+              disabled
               value={language}
               onValueChange={(value) =>
                 setValue("language", value as SettingsInput["language"], {
@@ -214,8 +213,8 @@ export function SettingsView({ email, profile, pushEnabled }: Props) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 space-y-0.5">
                 <p className="text-sm font-medium">Push-bildirishnomalar</p>
                 <p className="text-xs text-muted-foreground">
                   Vazifalar, imtihonlar va deadline eslatmalari.
@@ -240,7 +239,7 @@ export function SettingsView({ email, profile, pushEnabled }: Props) {
             <CardTitle className="flex items-center gap-2 text-base">
               <Wallet className="size-4 text-muted-foreground" /> Moliya
             </CardTitle>
-            <CardDescription>Oylik budjet chegarasini belgilang.</CardDescription>
+            <CardDescription>Umumiy oylik limitni belgilang. Budjet sahifasida alohida oyga qo'yilgan limit shu oy uchun ustun turadi.</CardDescription>
           </CardHeader>
           <CardContent className="max-w-xs space-y-2">
             <Label htmlFor="monthlyBudget">Oylik budjet (UZS)</Label>

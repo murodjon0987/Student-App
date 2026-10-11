@@ -1,7 +1,9 @@
 import { type NextRequest } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { decrypt, getSessionToken } from "@/lib/auth/session";
+import { getAuthenticatedSession } from "@/lib/auth/session";
+import { consumeRateLimit } from "@/lib/rate-limit";
+import { readJsonBody, RequestBodyError } from "@/lib/http";
 import { buildStudentContext } from "@/features/ai/context";
 import { isAiConfigured, streamGemini, type AiMessage } from "@/features/ai/gemini";
 import {
@@ -10,6 +12,7 @@ import {
   isImageRequest,
 } from "@/features/ai/image";
 import { chatRequestSchema } from "@/features/ai/schema";
+import { redactProviderTokens } from "@/features/ai/content";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +33,7 @@ Qoidalar:
 - Javobni Markdown'da yoz (sarlavha, ro'yxat, kod bloklari).`;
 
 export async function POST(request: NextRequest) {
-  const session = await decrypt(await getSessionToken());
+  const session = await getAuthenticatedSession();
   if (!session?.userId) {
     return Response.json({ error: "Avtorizatsiya kerak" }, { status: 401 });
   }
@@ -38,9 +41,11 @@ export async function POST(request: NextRequest) {
 
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Noto'g'ri so'rov" }, { status: 400 });
+    body = await readJsonBody(request);
+  } catch (error) {
+    return Response.json({ error: error instanceof RequestBodyError ? error.message : "Noto'g'ri so'rov" }, {
+      status: error instanceof RequestBodyError ? error.status : 400,
+    });
   }
 
   const parsed = chatRequestSchema.safeParse(body);
@@ -52,6 +57,29 @@ export async function POST(request: NextRequest) {
   }
 
   const { chatId: inputChatId, message, mode } = parsed.data;
+
+  const wantsImage = mode === "image" || isImageRequest(message);
+  if ((wantsImage && !isImageGenerationConfigured()) || (!wantsImage && !isAiConfigured())) {
+    return Response.json({ error: "AI xizmati hozircha mavjud emas. Keyinroq urinib ko'ring." }, { status: 503 });
+  }
+  try {
+    const limits = await Promise.all([
+      consumeRateLimit("ai:minute", userId, 10, 60_000),
+      consumeRateLimit("ai:day", userId, 120, 24 * 60 * 60_000),
+      ...(wantsImage ? [consumeRateLimit("ai:image-day", userId, 5, 24 * 60 * 60_000)] : []),
+    ]);
+    const denied = limits.filter((limit) => !limit.allowed);
+    if (denied.length) {
+      const retryAfter = Math.max(...denied.map((limit) => limit.retryAfter));
+      return Response.json({ error: "AI so'rovlari limiti tugadi. Biroz kutib, qaytadan urinib ko'ring." }, {
+        status: 429,
+        headers: { "Retry-After": String(retryAfter) },
+      });
+    }
+  } catch {
+    console.error("[ai/chat] rate limit storage unavailable");
+    return Response.json({ error: "AI xizmati vaqtincha mavjud emas" }, { status: 503 });
+  }
 
   let chatId = inputChatId || null;
   let title = "Yangi suhbat";
@@ -78,9 +106,7 @@ export async function POST(request: NextRequest) {
     data: { chatId, role: "user", content: message },
   });
 
-  const wantsImage = mode === "image" || isImageRequest(message);
-
-  if (wantsImage && isImageGenerationConfigured()) {
+  if (wantsImage) {
     return streamImageResponse({
       request,
       userId,
@@ -88,16 +114,6 @@ export async function POST(request: NextRequest) {
       title,
       message,
     });
-  }
-
-  if (!isAiConfigured()) {
-    return Response.json(
-      {
-        error:
-          "AI hali sozlanmagan. Vercel'da GEMINI_API_KEY environment variable qo'shing.",
-      },
-      { status: 503 }
-    );
   }
 
   const recent = await prisma.chatMessage.findMany({
@@ -111,7 +127,7 @@ export async function POST(request: NextRequest) {
     .reverse()
     .map((m) => ({
       role: m.role === "assistant" ? "assistant" : "user",
-      content: m.content,
+      content: redactProviderTokens(m.content),
     }));
 
   const context = await buildStudentContext(userId);
@@ -119,11 +135,16 @@ export async function POST(request: NextRequest) {
 
   const encoder = new TextEncoder();
   const finalChatId = chatId;
+  const cancellation = new AbortController();
+  const signal = AbortSignal.any([request.signal, cancellation.signal, AbortSignal.timeout(50_000)]);
+  let cancelled = false;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (payload: Record<string, unknown>) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
+        if (cancelled) return;
+        try { controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`)); }
+        catch { cancelled = true; cancellation.abort(); }
       };
 
       send({ type: "meta", chatId: finalChatId, title });
@@ -133,7 +154,7 @@ export async function POST(request: NextRequest) {
         for await (const chunk of streamGemini({
           system,
           messages,
-          signal: request.signal,
+          signal,
         })) {
           full += chunk;
           send({ type: "delta", text: chunk });
@@ -145,10 +166,7 @@ export async function POST(request: NextRequest) {
           console.error("[ai/chat] stream error", error);
           send({
             type: "error",
-            message:
-              error instanceof Error
-                ? error.message
-                : "AI bilan bog'lanishda xatolik yuz berdi",
+            message: "AI bilan bog'lanishda xatolik yuz berdi. Qaytadan urinib ko'ring.",
           });
         }
       } finally {
@@ -166,9 +184,10 @@ export async function POST(request: NextRequest) {
           }
         }
         send({ type: "done" });
-        controller.close();
+        if (!cancelled) controller.close();
       }
     },
+    cancel() { cancelled = true; cancellation.abort(); },
   });
 
   return new Response(stream, {
@@ -194,18 +213,23 @@ function streamImageResponse({
   message: string;
 }) {
   const encoder = new TextEncoder();
+  const cancellation = new AbortController();
+  const signal = AbortSignal.any([request.signal, cancellation.signal, AbortSignal.timeout(50_000)]);
+  let cancelled = false;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (payload: Record<string, unknown>) => {
-        controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`));
+        if (cancelled) return;
+        try { controller.enqueue(encoder.encode(`${JSON.stringify(payload)}\n`)); }
+        catch { cancelled = true; cancellation.abort(); }
       };
 
       send({ type: "meta", chatId, title });
 
       let full = "";
       try {
-        const image = await generateImage(userId, message, request.signal);
+        const image = await generateImage(userId, message, signal);
         const alt = image.prompt.replace(/[\[\]]/g, "");
         full = `Mana siz so'ragan rasm:\n\n![${alt}](${image.url})`;
         send({ type: "delta", text: full });
@@ -216,10 +240,7 @@ function streamImageResponse({
           console.error("[ai/chat] image error", error);
           send({
             type: "error",
-            message:
-              error instanceof Error
-                ? error.message
-                : "Rasm generatsiya qilishda xatolik yuz berdi",
+            message: "Rasm generatsiya qilishda xatolik yuz berdi. Qaytadan urinib ko'ring.",
           });
         }
       } finally {
@@ -237,9 +258,10 @@ function streamImageResponse({
           }
         }
         send({ type: "done" });
-        controller.close();
+        if (!cancelled) controller.close();
       }
     },
+    cancel() { cancelled = true; cancellation.abort(); },
   });
 
   return new Response(stream, {

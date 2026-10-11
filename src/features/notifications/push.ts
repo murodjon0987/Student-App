@@ -4,6 +4,7 @@ import webpush from "web-push";
 
 import { prisma } from "@/lib/prisma";
 import { fail, ok, type ActionResult } from "@/lib/types";
+import { notificationRecipientsWhere } from "./preferences";
 
 export interface PushSubscriptionInput {
   endpoint: string;
@@ -18,6 +19,49 @@ export interface PushPayload {
   body: string;
   url?: string;
   tag?: string;
+}
+
+// A user may register a push subscription from a limited number of devices.
+export const MAX_PUSH_SUBSCRIPTIONS = 20;
+
+// Web-push endpoints are always HTTPS capability URLs.
+export function isValidPushEndpoint(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const endpoint = value.trim();
+  if (!endpoint || endpoint.length > 2048) return false;
+  try {
+    const url = new URL(endpoint);
+    return url.protocol === "https:" && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+// p256dh/auth are base64url-encoded; reject arbitrary strings before storing.
+export function isValidPushKey(value: unknown, min: number, max: number): value is string {
+  return (
+    typeof value === "string" &&
+    value.length >= min &&
+    value.length <= max &&
+    /^[A-Za-z0-9_-]+={0,2}$/.test(value)
+  );
+}
+
+export function validatePushSubscription(
+  subscription: PushSubscriptionInput | null | undefined
+): { endpoint: string; p256dh: string; auth: string } | null {
+  if (!subscription || typeof subscription !== "object") return null;
+  const endpoint = subscription.endpoint;
+  const keys = subscription.keys;
+  if (!isValidPushEndpoint(endpoint) || !keys) return null;
+  if (!isValidPushKey(keys.p256dh, 40, 200) || !isValidPushKey(keys.auth, 16, 100)) {
+    return null;
+  }
+  return {
+    endpoint: endpoint.trim(),
+    p256dh: keys.p256dh.trim(),
+    auth: keys.auth.trim(),
+  };
 }
 
 let configured = false;
@@ -52,21 +96,37 @@ export async function savePushSubscription(
     return fail("Push bildirishnomalar serverda sozlanmagan");
   }
 
+  const valid = validatePushSubscription(subscription);
+  if (!valid) {
+    return fail("Obuna ma'lumotlari noto'g'ri");
+  }
+
   try {
+    const existing = await prisma.pushSubscription.findUnique({
+      where: { endpoint: valid.endpoint },
+      select: { userId: true },
+    });
+    if (!existing || existing.userId !== userId) {
+      const count = await prisma.pushSubscription.count({ where: { userId } });
+      if (count >= MAX_PUSH_SUBSCRIPTIONS) {
+        return fail("Obunalar soni chegaradan oshdi");
+      }
+    }
+
     await prisma.pushSubscription.upsert({
-      where: { endpoint: subscription.endpoint },
+      where: { endpoint: valid.endpoint },
       create: {
         userId,
-        endpoint: subscription.endpoint,
-        p256dh: subscription.keys.p256dh,
-        auth: subscription.keys.auth,
-        userAgent: userAgent ?? null,
+        endpoint: valid.endpoint,
+        p256dh: valid.p256dh,
+        auth: valid.auth,
+        userAgent: userAgent?.slice(0, 500) ?? null,
       },
       update: {
         userId,
-        p256dh: subscription.keys.p256dh,
-        auth: subscription.keys.auth,
-        userAgent: userAgent ?? null,
+        p256dh: valid.p256dh,
+        auth: valid.auth,
+        userAgent: userAgent?.slice(0, 500) ?? null,
       },
     });
     return ok();
@@ -132,8 +192,18 @@ async function deliverToSubscriptions(
 }
 
 export async function sendPushToUser(userId: string, payload: PushPayload) {
+  return sendPushToUsers([userId], payload);
+}
+
+export async function sendPushToUsers(userIds: string[], payload: PushPayload) {
+  if (userIds.length === 0) return { sent: 0, removed: 0 };
+
   const subscriptions = await prisma.pushSubscription.findMany({
-    where: { userId },
+    where: {
+      user: {
+        is: { ...notificationRecipientsWhere, id: { in: userIds } },
+      },
+    },
     select: { id: true, endpoint: true, p256dh: true, auth: true },
   });
   return deliverToSubscriptions(subscriptions, payload);
@@ -141,6 +211,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
 
 export async function sendPushToAll(payload: PushPayload) {
   const subscriptions = await prisma.pushSubscription.findMany({
+    where: { user: { is: notificationRecipientsWhere } },
     select: { id: true, endpoint: true, p256dh: true, auth: true },
   });
   return deliverToSubscriptions(subscriptions, payload);

@@ -7,8 +7,10 @@ import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import {
+  isValidPushEndpoint,
   removePushSubscription,
   savePushSubscription,
+  validatePushSubscription,
   type PushSubscriptionInput,
 } from "./push";
 
@@ -69,11 +71,7 @@ export async function subscribeToUpdates(
 ): Promise<ActionResult> {
   const { userId } = await verifySession();
 
-  if (
-    !subscription?.endpoint ||
-    !subscription.keys?.p256dh ||
-    !subscription.keys?.auth
-  ) {
+  if (!validatePushSubscription(subscription)) {
     return fail("Obuna ma'lumotlari noto'g'ri");
   }
 
@@ -89,6 +87,6 @@ export async function unsubscribeFromUpdates(
   endpoint: string
 ): Promise<ActionResult> {
   const { userId } = await verifySession();
-  if (!endpoint) return fail("Endpoint topilmadi");
+  if (!isValidPushEndpoint(endpoint)) return fail("Endpoint topilmadi");
   return removePushSubscription(userId, endpoint);
 }

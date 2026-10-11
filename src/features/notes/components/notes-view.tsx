@@ -2,15 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { NotebookPen, Plus, Search, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { NotebookPen, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
-import { cn } from "@/lib/utils";
 import { timeAgo } from "@/lib/format";
 import { deleteNote } from "@/features/notes/actions";
 import {
@@ -20,40 +19,19 @@ import {
 
 interface Props {
   notes: NoteItem[];
+  filters: React.ReactNode;
   subjects: { id: string; name: string }[];
 }
 
-export function NotesView({ notes, subjects }: Props) {
+export function NotesView({ notes, subjects, filters }: Props) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<NoteItem | null>(null);
-  const [search, setSearch] = React.useState("");
-  const [tagFilter, setTagFilter] = React.useState<string | null>(null);
 
   const subjectName = (id: string | null) =>
     subjects.find((s) => s.id === id)?.name ?? null;
 
-  const allTags = React.useMemo(() => {
-    const set = new Set<string>();
-    notes.forEach((note) => note.tags.forEach((tag) => set.add(tag)));
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [notes]);
-
-  const filtered = React.useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return notes
-      .filter((note) =>
-        tagFilter ? note.tags.includes(tagFilter) : true
-      )
-      .filter((note) => {
-        if (!query) return true;
-        return (
-          note.title.toLowerCase().includes(query) ||
-          note.content.toLowerCase().includes(query) ||
-          note.tags.some((tag) => tag.toLowerCase().includes(query))
-        );
-      });
-  }, [notes, search, tagFilter]);
+  const filtered = notes;
 
   function openCreate() {
     setEditing(null);
@@ -76,49 +54,7 @@ export function NotesView({ notes, subjects }: Props) {
         </Button>
       </PageHeader>
 
-      <div className="space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Sarlavha, matn yoki teg bo'yicha qidirish..."
-            className="pl-9"
-          />
-        </div>
-
-        {allTags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setTagFilter(null)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                tagFilter === null
-                  ? "border-primary/30 bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:border-primary/30"
-              )}
-            >
-              Barchasi
-            </button>
-            {allTags.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                  tagFilter === tag
-                    ? "border-primary/30 bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:border-primary/30"
-                )}
-              >
-                #{tag}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      {filters}
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -192,7 +128,8 @@ export function NotesView({ notes, subjects }: Props) {
                 </div>
               )}
 
-              <div className="mt-auto flex items-center justify-between pt-3 text-xs text-muted-foreground">
+              <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3 text-xs text-muted-foreground">
+                <Link href={`/learn?note=${note.id}`} className="text-primary hover:underline" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>Test va kartochka yaratish</Link>
                 <span>{subjectName(note.subjectId) ?? "Umumiy"}</span>
                 <span>{timeAgo(note.updatedAt)}</span>
               </div>

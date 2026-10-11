@@ -1,14 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { parseAcademicDateTime } from "@/lib/date";
 
 import { prisma } from "@/lib/prisma";
+import { ownsSubject } from "@/lib/ownership";
 import { verifySession } from "@/lib/auth/dal";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { examSchema, type ExamInput } from "./schema";
 
 function parseExamDate(value: string) {
-  const date = new Date(value);
+  const date = parseAcademicDateTime(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -27,6 +29,8 @@ export async function saveExam(
   if (!date) return fail("Sana noto'g'ri kiritilgan");
 
   try {
+    if (!(await ownsSubject(userId, data.subjectId))) return fail("Fan topilmadi");
+
     if (data.id) {
       const existing = await prisma.exam.findFirst({
         where: { id: data.id, userId },
@@ -34,7 +38,7 @@ export async function saveExam(
       if (!existing) return fail("Imtihon topilmadi");
 
       await prisma.exam.update({
-        where: { id: data.id },
+        where: { id: data.id, userId },
         data: {
           title: data.title,
           subjectId: data.subjectId || null,
@@ -75,7 +79,7 @@ export async function deleteExam(id: string): Promise<ActionResult> {
   if (!existing) return fail("Imtihon topilmadi");
 
   try {
-    await prisma.exam.delete({ where: { id } });
+    await prisma.exam.delete({ where: { id, userId } });
     revalidatePath("/", "layout");
     return ok();
   } catch {
@@ -89,7 +93,7 @@ export async function updateExamProgress(
 ): Promise<ActionResult> {
   const { userId } = await verifySession();
 
-  if (typeof progress !== "number" || Number.isNaN(progress)) {
+  if (typeof progress !== "number" || !Number.isFinite(progress)) {
     return fail("Noto'g'ri qiymat");
   }
 
@@ -100,7 +104,7 @@ export async function updateExamProgress(
 
   try {
     await prisma.exam.update({
-      where: { id },
+      where: { id, userId },
       data: { prepProgress: clamped },
     });
     revalidatePath("/", "layout");

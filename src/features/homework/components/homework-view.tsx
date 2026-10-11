@@ -10,21 +10,12 @@ import {
   Loader2,
   Pencil,
   Plus,
-  Search,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -47,48 +38,20 @@ import {
 
 interface Props {
   homework: HomeworkItem[];
+  filters: React.ReactNode;
   subjects: { id: string; name: string }[];
 }
 
-type StatusFilter = "ALL" | "PENDING" | "IN_PROGRESS" | "COMPLETED";
-type SortKey = "deadline" | "created" | "priority";
-
-const PRIORITY_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
-
-export function HomeworkView({ homework, subjects }: Props) {
+export function HomeworkView({ homework, subjects, filters }: Props) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<HomeworkItem | null>(null);
-  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("ALL");
-  const [priorityFilter, setPriorityFilter] = React.useState("ALL");
-  const [search, setSearch] = React.useState("");
-  const [sort, setSort] = React.useState<SortKey>("deadline");
   const [pendingId, setPendingId] = React.useState<string | null>(null);
 
   const subjectName = (id: string | null) =>
     subjects.find((s) => s.id === id)?.name ?? null;
 
-  const filtered = React.useMemo(() => {
-    return homework
-      .filter((t) => (statusFilter === "ALL" ? true : t.status === statusFilter))
-      .filter((t) => (priorityFilter === "ALL" ? true : t.priority === priorityFilter))
-      .filter((t) =>
-        search.trim()
-          ? t.title.toLowerCase().includes(search.trim().toLowerCase())
-          : true
-      )
-      .sort((a, b) => {
-        if (sort === "priority") {
-          return (
-            (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1)
-          );
-        }
-        if (sort === "created") return 0;
-        const aTime = a.deadline ? new Date(a.deadline).getTime() : Infinity;
-        const bTime = b.deadline ? new Date(b.deadline).getTime() : Infinity;
-        return aTime - bTime;
-      });
-  }, [homework, statusFilter, priorityFilter, search, sort]);
+  const filtered = homework;
 
   function openCreate() {
     setEditing(null);
@@ -129,52 +92,7 @@ export function HomeworkView({ homework, subjects }: Props) {
         </Button>
       </PageHeader>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Qidirish..."
-            className="pl-9"
-          />
-        </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as StatusFilter)}
-        >
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Barcha holat</SelectItem>
-            <SelectItem value="PENDING">Kutilmoqda</SelectItem>
-            <SelectItem value="IN_PROGRESS">Jarayonda</SelectItem>
-            <SelectItem value="COMPLETED">Bajarildi</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-full sm:w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Muhimlik</SelectItem>
-            <SelectItem value="HIGH">Yuqori</SelectItem>
-            <SelectItem value="MEDIUM">O'rta</SelectItem>
-            <SelectItem value="LOW">Past</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-          <SelectTrigger className="w-full sm:w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="deadline">Deadline</SelectItem>
-            <SelectItem value="priority">Muhimlik</SelectItem>
-            <SelectItem value="created">Yangi</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {filters}
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -196,7 +114,7 @@ export function HomeworkView({ homework, subjects }: Props) {
               <div
                 key={item.id}
                 className={cn(
-                  "group flex items-start gap-3 rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-primary/30",
+                  "group flex flex-wrap items-start gap-3 sm:flex-nowrap rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-primary/30",
                   done && "opacity-60"
                 )}
               >
@@ -217,7 +135,7 @@ export function HomeworkView({ homework, subjects }: Props) {
                   )}
                 </button>
 
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] sm:basis-auto">
                   <div className="flex flex-wrap items-center gap-2">
                     <p
                       className={cn(
@@ -270,7 +188,7 @@ export function HomeworkView({ homework, subjects }: Props) {
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
+                <div className="ml-auto flex shrink-0 items-center gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
                   <Button
                     variant="ghost"
                     size="icon-sm"

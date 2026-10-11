@@ -5,6 +5,14 @@
     {
       "path": "/api/cron/daily",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/study",
+      "schedule": "15 4 * * *"
+    },
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 * * * *"
     }
   ]
 }

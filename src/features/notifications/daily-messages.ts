@@ -83,8 +83,9 @@ const MESSAGES: DailyMessage[] = [
 ];
 
 export function getDailyMessage(date: Date): DailyMessage {
-  const start = new Date(date.getFullYear(), 0, 0);
-  const dayOfYear = Math.floor((date.getTime() - start.getTime()) / 86_400_000);
+  const start = Date.UTC(date.getUTCFullYear(), 0, 0);
+  const currentDay = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  const dayOfYear = Math.floor((currentDay - start) / 86_400_000);
   return MESSAGES[dayOfYear % MESSAGES.length];
 }
 

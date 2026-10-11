@@ -11,7 +11,6 @@ import { SubmitButton } from "@/components/shared/submit-button";
 
 export function ForgotPasswordForm() {
   const [state, action] = useActionState(forgotPassword, undefined);
-  const debugUrl = state?.errors?.__debug?.[0];
 
   return (
     <div className="space-y-6">
@@ -28,15 +27,13 @@ export function ForgotPasswordForm() {
             <CheckCircle2 className="size-4 shrink-0" />
             {state.message}
           </div>
-          {debugUrl && (
-            <Link
-              href={debugUrl}
-              className="block break-all font-medium underline"
-            >
-              Tiklash havolasini ochish
-            </Link>
-          )}
         </div>
+      )}
+
+      {state?.message && !state.success && (
+        <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+          {state.message}
+        </p>
       )}
 
       <form action={action} className="space-y-4">

@@ -4,9 +4,9 @@ export const chatRequestSchema = z.object({
   chatId: z.string().optional().nullable(),
   message: z
     .string()
+    .trim()
     .min(1, { error: "Xabar bo'sh bo'lmasligi kerak" })
-    .max(4000, { error: "Xabar juda uzun (maksimal 4000 belgi)" })
-    .trim(),
+    .max(4000, { error: "Xabar juda uzun (maksimal 4000 belgi)" }),
   mode: z.enum(["chat", "image"]).optional(),
 });
 

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { budgetSchema, expenseSchema, type ExpenseInput } from "./schema";
+import { academicDate } from "@/lib/date";
 
 export async function addExpense(
   input: ExpenseInput
@@ -18,7 +19,7 @@ export async function addExpense(
   }
 
   const data = parsed.data;
-  const date = new Date(data.date);
+  const date = academicDate(data.date);
   if (Number.isNaN(date.getTime())) return fail("Sana noto'g'ri");
 
   try {

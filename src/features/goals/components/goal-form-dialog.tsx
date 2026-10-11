@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
+import { formatDate } from "@/lib/format";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -40,7 +40,7 @@ interface Props {
 
 function toDateInput(value: Date | string | null | undefined) {
   if (!value) return "";
-  return format(new Date(value), "yyyy-MM-dd");
+  return formatDate(value, "yyyy-MM-dd");
 }
 
 export function GoalFormDialog({ open, onOpenChange, initial }: Props) {
@@ -98,7 +98,7 @@ export function GoalFormDialog({ open, onOpenChange, initial }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {initial ? "Maqsadni tahrirlash" : "Yangi maqsad"}

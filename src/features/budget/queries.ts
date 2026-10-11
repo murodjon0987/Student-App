@@ -3,40 +3,34 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
+import { queryPage, type ListParams } from "@/lib/pagination";
+import { monthKey, monthRange } from "@/lib/date";
 
-const MONTH_REGEX = /^\d{4}-\d{2}$/;
+const MONTH_REGEX = /^(?:19\d{2}|[2-9]\d{3})-(?:0[1-9]|1[0-2])$/;
 
 export function currentMonthKey(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  return monthKey(date);
 }
 
-export async function getBudgetData(month?: string) {
+export async function getBudgetData(month?: string, params: ListParams = {}) {
   const { userId } = await verifySession();
 
   const target = month && MONTH_REGEX.test(month) ? month : currentMonthKey();
-  const [year, monthIndex] = target.split("-").map(Number);
-  const start = new Date(year, monthIndex - 1, 1);
-  const end = new Date(year, monthIndex, 0, 23, 59, 59, 999);
+  const { start, end } = monthRange(target);
 
-  const [budget, expenses] = await Promise.all([
+  const where = { userId, date: { gte: start, lte: end } };
+  const [budget, result, categoryTotals, profile] = await Promise.all([
     prisma.budget.findUnique({
       where: { userId_month: { userId, month: target } },
     }),
-    prisma.expense.findMany({
-      where: { userId, date: { gte: start, lte: end } },
-      orderBy: { date: "desc" },
-    }),
+    queryPage(params.page, () => prisma.expense.count({ where }),
+      (range) => prisma.expense.findMany({ where, ...range, orderBy: [{ date: "desc" }, { id: "desc" }] })),
+    prisma.expense.groupBy({ by: ["category"], where, _sum: { amount: true } }),
+    prisma.studentProfile.findUnique({ where: { userId }, select: { monthlyBudget: true } }),
   ]);
 
-  const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-
-  const totalsByCategory = new Map<string, number>();
-  for (const expense of expenses) {
-    totalsByCategory.set(
-      expense.category,
-      (totalsByCategory.get(expense.category) ?? 0) + expense.amount
-    );
-  }
+  const total = categoryTotals.reduce((sum, group) => sum + (group._sum.amount ?? 0), 0);
+  const totalsByCategory = new Map(categoryTotals.map((group) => [group.category, group._sum.amount ?? 0]));
 
   const byCategory = EXPENSE_CATEGORIES.map((category) => ({
     category: category.value,
@@ -47,8 +41,9 @@ export async function getBudgetData(month?: string) {
 
   return {
     month: target,
-    budget: budget?.amount ?? 0,
-    expenses,
+    budget: budget?.amount ?? profile?.monthlyBudget ?? 0,
+    expenses: result.items,
+    pagination: result.pagination,
     total,
     byCategory,
   };

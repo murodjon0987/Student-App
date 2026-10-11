@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { parseAcademicDateTime } from "@/lib/date";
 
 import { prisma } from "@/lib/prisma";
+import { ownsSubject } from "@/lib/ownership";
 import { verifySession } from "@/lib/auth/dal";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import {
@@ -13,7 +15,7 @@ import {
 
 function parseDeadline(value?: string | null) {
   if (!value) return null;
-  const date = new Date(value);
+  const date = parseAcademicDateTime(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -31,6 +33,8 @@ export async function saveHomework(
   const deadline = parseDeadline(data.deadline);
 
   try {
+    if (!(await ownsSubject(userId, data.subjectId))) return fail("Fan topilmadi");
+
     if (data.id) {
       const existing = await prisma.homework.findFirst({
         where: { id: data.id, userId },
@@ -38,7 +42,7 @@ export async function saveHomework(
       if (!existing) return fail("Vazifa topilmadi");
 
       await prisma.homework.update({
-        where: { id: data.id },
+        where: { id: data.id, userId },
         data: {
           title: data.title,
           description: data.description ?? null,
@@ -76,12 +80,16 @@ export async function setHomeworkStatus(
 ): Promise<ActionResult> {
   const { userId } = await verifySession();
 
-  const existing = await prisma.homework.findFirst({ where: { id, userId } });
-  if (!existing) return fail("Vazifa topilmadi");
+  if (!homeworkSchema.shape.status.safeParse(status).success) {
+    return fail("Vazifa holati noto'g'ri");
+  }
 
   try {
+    const existing = await prisma.homework.findFirst({ where: { id, userId } });
+    if (!existing) return fail("Vazifa topilmadi");
+
     await prisma.homework.update({
-      where: { id },
+      where: { id, userId },
       data: { status },
     });
     revalidatePath("/", "layout");
@@ -94,11 +102,11 @@ export async function setHomeworkStatus(
 export async function deleteHomework(id: string): Promise<ActionResult> {
   const { userId } = await verifySession();
 
-  const existing = await prisma.homework.findFirst({ where: { id, userId } });
-  if (!existing) return fail("Vazifa topilmadi");
-
   try {
-    await prisma.homework.delete({ where: { id } });
+    const existing = await prisma.homework.findFirst({ where: { id, userId } });
+    if (!existing) return fail("Vazifa topilmadi");
+
+    await prisma.homework.delete({ where: { id, userId } });
     revalidatePath("/", "layout");
     return ok();
   } catch {

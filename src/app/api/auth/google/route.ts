@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { SignJWT } from "jose";
+import { getSessionKey } from "@/lib/auth/token";
+import { safeNextPath } from "@/lib/auth/security";
 
 import {
   getGoogleClient,
@@ -18,9 +20,9 @@ export async function GET(request: NextRequest) {
   }
 
   const nextParam = request.nextUrl.searchParams.get("next") ?? "/dashboard";
-  const next = nextParam.startsWith("/") ? nextParam : "/dashboard";
+  const next = safeNextPath(nextParam);
 
-  const secret = new TextEncoder().encode(process.env.SESSION_SECRET);
+  const secret = getSessionKey();
   const state = await new SignJWT({ nonce: crypto.randomUUID(), next })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()

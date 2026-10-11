@@ -106,3 +106,29 @@ export const POMODORO_MODES = [
   { id: "POMODORO_50", label: "50 / 10", work: 50, break: 10 },
   { id: "POMODORO_90", label: "90 / 15", work: 90, break: 15 },
 ] as const;
+
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
+
+export const ATTENDANCE_STATUSES: AttendanceStatus[] = [
+  "PRESENT",
+  "ABSENT",
+  "LATE",
+  "EXCUSED",
+];
+
+export const ATTENDANCE_LABELS: Record<AttendanceStatus, string> = {
+  PRESENT: "Bor",
+  ABSENT: "Kelmadi",
+  LATE: "Kechikdi",
+  EXCUSED: "Sababli",
+};
+
+export const ATTENDANCE_BADGE: Record<
+  AttendanceStatus,
+  "success" | "destructive" | "warning" | "secondary"
+> = {
+  PRESENT: "success",
+  ABSENT: "destructive",
+  LATE: "warning",
+  EXCUSED: "secondary",
+};

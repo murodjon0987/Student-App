@@ -39,7 +39,7 @@ export function FocusView({ subjects, data }: Props) {
     },
     {
       label: "Jami sessiyalar",
-      value: String(data.sessions.length),
+      value: String(data.sessionCount),
       icon: Brain,
     },
   ];
@@ -74,10 +74,10 @@ export function FocusView({ subjects, data }: Props) {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">So&apos;nggi sessiyalar</CardTitle>
+            <CardTitle className="text-base">Sessiyalar tarixi</CardTitle>
           </CardHeader>
           <CardContent>
-            {data.sessionsToday.length === 0 ? (
+            {data.sessions.length === 0 ? (
               <EmptyState
                 icon={Brain}
                 title="Sessiyalar yo'q"
@@ -85,7 +85,7 @@ export function FocusView({ subjects, data }: Props) {
               />
             ) : (
               <div className="space-y-2">
-                {data.sessionsToday.map((session) => (
+                {data.sessions.map((session) => (
                   <div
                     key={session.id}
                     className="group flex items-center gap-3 rounded-lg border border-border p-3"

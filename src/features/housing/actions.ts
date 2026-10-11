@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
 import { fail, ok, type ActionResult } from "@/lib/types";
+import { detectRasterImageMime, RASTER_IMAGE_MIME_TYPES } from "@/lib/image";
 import { housingSchema, type HousingInput } from "./schema";
 
 const MAX_IMAGES = 10;
@@ -54,7 +56,7 @@ export async function saveListing(
       if (!existing) return fail("E'lon topilmadi");
 
       await prisma.housingListing.update({
-        where: { id: data.id },
+        where: { id: data.id, userId },
         data: toData(data),
       });
       revalidatePath("/housing");
@@ -83,7 +85,7 @@ export async function deleteListing(id: string): Promise<ActionResult> {
   if (!existing) return fail("E'lon topilmadi");
 
   try {
-    await prisma.housingListing.delete({ where: { id } });
+    await prisma.housingListing.delete({ where: { id, userId } });
     revalidatePath("/housing");
     return ok();
   } catch {
@@ -102,39 +104,55 @@ export async function uploadListingImage(
   if (!(file instanceof File) || file.size === 0) {
     return fail("Rasm topilmadi");
   }
-  if (!file.type.startsWith("image/")) {
-    return fail("Faqat rasm fayllarini yuklash mumkin");
+  if (!(RASTER_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) {
+    return fail("Faqat JPEG, PNG, GIF yoki WebP rasmlarini yuklash mumkin");
   }
   if (file.size > MAX_IMAGE_BYTES) {
     return fail("Rasm hajmi juda katta (4 MB dan oshmasin)");
   }
 
-  const listing = await prisma.housingListing.findFirst({
-    where: { id: listingId, userId },
-    select: { id: true },
-  });
-  if (!listing) return fail("E'lon topilmadi");
-
   try {
-    const count = await prisma.housingImage.count({ where: { listingId } });
-    if (count >= MAX_IMAGES) {
-      return fail(`Ko'pi bilan ${MAX_IMAGES} ta rasm yuklash mumkin`);
+    const data = new Uint8Array(await file.arrayBuffer());
+    const mimeType = detectRasterImageMime(data);
+    if (!mimeType || mimeType !== file.type) {
+      return fail("Rasm formati yoki fayl tarkibi noto'g'ri");
     }
 
-    const data = new Uint8Array(await file.arrayBuffer());
-    const image = await prisma.housingImage.create({
-      data: {
-        listingId,
-        mimeType: file.type,
-        data,
-        position: count,
-      },
-      select: { id: true },
-    });
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          const listing = await tx.housingListing.findFirst({
+            where: { id: listingId, userId },
+            select: { id: true },
+          });
+          if (!listing) return fail("E'lon topilmadi");
 
-    revalidatePath("/housing");
-    revalidatePath(`/housing/${listingId}`);
-    return ok({ id: image.id });
+          const images = await tx.housingImage.aggregate({
+            where: { listingId },
+            _count: { _all: true },
+            _max: { position: true },
+          });
+          if (images._count._all >= MAX_IMAGES) {
+            return fail(`Ko'pi bilan ${MAX_IMAGES} ta rasm yuklash mumkin`);
+          }
+          const image = await tx.housingImage.create({
+            data: { listingId, mimeType, data, position: (images._max.position ?? -1) + 1 },
+            select: { id: true },
+          });
+          return ok({ id: image.id });
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+        if (result.success) {
+          revalidatePath("/housing");
+          revalidatePath(`/housing/${listingId}`);
+        }
+        return result;
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034" && attempt < 2) continue;
+        throw error;
+      }
+    }
+    return fail("Rasmni saqlashda xatolik yuz berdi");
   } catch {
     return fail("Rasmni saqlashda xatolik yuz berdi");
   }
@@ -152,7 +170,7 @@ export async function deleteListingImage(
   if (!image) return fail("Rasm topilmadi");
 
   try {
-    await prisma.housingImage.delete({ where: { id: imageId } });
+    await prisma.housingImage.delete({ where: { id: imageId, listing: { userId } } });
     revalidatePath("/housing");
     revalidatePath(`/housing/${image.listingId}`);
     return ok();

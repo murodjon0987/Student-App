@@ -4,8 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
 import { EVENT_TYPES } from "@/lib/constants";
 import { formatTime } from "@/lib/format";
+import { monthKey, monthRange, academicDate, appDateParts } from "@/lib/date";
 
-const MONTH_REGEX = /^\d{4}-\d{2}$/;
+const MONTH_REGEX = /^(?:19\d{2}|[2-9]\d{3})-(?:0[1-9]|1[0-2])$/;
 
 export interface CalendarItem {
   id: string;
@@ -23,7 +24,7 @@ export interface CalendarData {
 }
 
 function currentMonthKey(date = new Date()) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  return monthKey(date);
 }
 
 function typeColor(type: string) {
@@ -35,8 +36,7 @@ export async function getCalendarData(month?: string): Promise<CalendarData> {
 
   const target = month && MONTH_REGEX.test(month) ? month : currentMonthKey();
   const [year, monthIndex] = target.split("-").map(Number);
-  const start = new Date(year, monthIndex - 1, 1);
-  const end = new Date(year, monthIndex, 0, 23, 59, 59, 999);
+  const { start, end } = monthRange(target);
 
   const [events, schedules, exams, homeworks, tasks, goals] = await Promise.all([
     prisma.event.findMany({
@@ -87,11 +87,11 @@ export async function getCalendarData(month?: string): Promise<CalendarData> {
     });
   }
 
-  const daysInMonth = new Date(year, monthIndex, 0).getDate();
+  const daysInMonth = new Date(Date.UTC(year, monthIndex, 0)).getUTCDate();
   for (const schedule of schedules) {
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, monthIndex - 1, day);
-      const weekday = date.getDay() === 0 ? 7 : date.getDay();
+      const date = academicDate(`${target}-${String(day).padStart(2, "0")}`);
+      const weekday = appDateParts(date).weekday || 7;
       if (weekday !== schedule.dayOfWeek) continue;
 
       items.push({

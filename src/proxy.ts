@@ -1,8 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { jwtVerify } from "jose";
-
-const secretKey = process.env.SESSION_SECRET ?? "";
-const encodedKey = new TextEncoder().encode(secretKey);
+import { decrypt } from "@/lib/auth/token";
 
 const PUBLIC_ROUTES = [
   "/login",
@@ -12,13 +9,7 @@ const PUBLIC_ROUTES = [
 ];
 
 async function isAuthenticated(token: string | undefined) {
-  if (!token) return false;
-  try {
-    await jwtVerify(token, encodedKey, { algorithms: ["HS256"] });
-    return true;
-  } catch {
-    return false;
-  }
+  return Boolean(await decrypt(token));
 }
 
 export async function proxy(request: NextRequest) {
@@ -31,9 +22,8 @@ export async function proxy(request: NextRequest) {
   );
 
   if (pathname === "/") {
-    return NextResponse.redirect(
-      new URL(authed ? "/dashboard" : "/login", request.url)
-    );
+    // The page verifies the database session before redirecting signed-in users.
+    return NextResponse.next();
   }
 
   if (!authed && !isPublic) {
@@ -42,15 +32,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (authed && isPublic) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
+  // Public auth pages must remain reachable with revoked/deleted-account cookies.
+  // The signature alone cannot tell whether a session was revoked in the database.
 
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|icons|.*\\.(?:png|jpg|jpeg|svg|webp|ico|css|js)$).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|robots.txt|sitemap.xml|offline.html|icons|.*\\.(?:png|jpg|jpeg|svg|webp|ico|css|js)$).*)",
   ],
 };

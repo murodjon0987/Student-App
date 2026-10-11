@@ -58,7 +58,7 @@ export function NotificationPrompt() {
   }
 
   return (
-    <div className="fixed inset-x-3 bottom-20 z-50 lg:left-auto lg:right-6 lg:bottom-6 lg:w-full lg:max-w-sm">
+    <div className="fixed inset-x-3 bottom-[calc(5rem_+_env(safe-area-inset-bottom,0px))] z-40 lg:left-auto lg:right-6 lg:bottom-6 lg:w-full lg:max-w-sm">
       <div className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 shadow-lg">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
           <Bell className="size-5" />
@@ -68,7 +68,7 @@ export function NotificationPrompt() {
           <p className="mt-0.5 text-xs text-muted-foreground">
             Kunlik eslatmalar va yangilanishlarni o&apos;tkazib yubormang.
           </p>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             <Button size="sm" onClick={onEnable} disabled={busy}>
               Yoqish
             </Button>

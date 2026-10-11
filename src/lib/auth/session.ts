@@ -1,49 +1,25 @@
 import "server-only";
 
-import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import { prisma } from "@/lib/prisma";
+import { decrypt, encrypt, SESSION_COOKIE_NAME, SESSION_DURATION_MS } from "./token";
 
-const SESSION_COOKIE = "session";
-const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+export { decrypt, encrypt, SESSION_COOKIE_NAME } from "./token";
+export type { SessionPayload } from "./token";
 
-function getEncodedKey() {
-  const secretKey = process.env.SESSION_SECRET;
-  if (!secretKey) {
-    throw new Error("SESSION_SECRET environment variable is not set");
+export async function createSession(userId: string, expectedVersion?: number) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sessionVersion: true },
+  });
+  if (!user || (expectedVersion !== undefined && expectedVersion !== user.sessionVersion)) {
+    throw new Error("Account credentials have changed; please sign in again");
   }
-  return new TextEncoder().encode(secretKey);
-}
-
-export type SessionPayload = {
-  userId: string;
-  expiresAt: string;
-};
-
-export async function encrypt(payload: SessionPayload) {
-  return new SignJWT(payload)
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime("7d")
-    .sign(getEncodedKey());
-}
-
-export async function decrypt(token: string | undefined = "") {
-  try {
-    const { payload } = await jwtVerify(token, getEncodedKey(), {
-      algorithms: ["HS256"],
-    });
-    return payload as unknown as SessionPayload;
-  } catch {
-    return null;
-  }
-}
-
-export async function createSession(userId: string) {
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
-  const token = await encrypt({ userId, expiresAt: expiresAt.toISOString() });
+  const token = await encrypt({ userId, sessionVersion: user.sessionVersion, expiresAt: expiresAt.toISOString() });
   const cookieStore = await cookies();
 
-  cookieStore.set(SESSION_COOKIE, token, {
+  cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     expires: expiresAt,
@@ -54,12 +30,22 @@ export async function createSession(userId: string) {
 
 export async function deleteSession() {
   const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE);
+  cookieStore.delete(SESSION_COOKIE_NAME);
 }
 
 export async function getSessionToken() {
   const cookieStore = await cookies();
-  return cookieStore.get(SESSION_COOKIE)?.value;
+  return cookieStore.get(SESSION_COOKIE_NAME)?.value;
 }
 
-export const SESSION_COOKIE_NAME = SESSION_COOKIE;
+/** Required for every protected operation, including routes excluded by Proxy. */
+export async function getAuthenticatedSession(token?: string) {
+  const session = await decrypt(token ?? await getSessionToken());
+  if (!session) return null;
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { sessionVersion: true },
+  });
+  if (!user || user.sessionVersion !== session.sessionVersion) return null;
+  return session;
+}

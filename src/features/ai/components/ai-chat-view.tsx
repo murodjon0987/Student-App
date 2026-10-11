@@ -225,7 +225,7 @@ export function AiChatView({
   );
 
   return (
-    <div className="flex h-[calc(100dvh-10.5rem)] flex-col gap-4 sm:h-[calc(100dvh-11rem)] lg:h-[calc(100dvh-8.5rem)]">
+    <div className="flex min-h-[22rem] h-[calc(100dvh_-_10.5rem_-_env(safe-area-inset-top,0px)_-_env(safe-area-inset-bottom,0px))] min-w-0 flex-col gap-4 sm:h-[calc(100dvh_-_11rem_-_env(safe-area-inset-top,0px)_-_env(safe-area-inset-bottom,0px))] lg:h-[calc(100dvh_-_8.5rem)]">
       <PageHeader
         title="AI yordamchi"
         description="Ma'lumotlaringizga tayanadigan shaxsiy o'quv assistenti."
@@ -247,13 +247,13 @@ export function AiChatView({
         </Button>
       </PageHeader>
 
-      <div className="grid min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[280px_1fr]">
+      <div className="grid min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="hidden min-h-0 border-r border-border lg:block">
           {sidebar}
         </aside>
 
-        <section className="flex min-h-0 flex-col">
-          <div className="flex-1 overflow-y-auto">
+        <section className="flex min-h-0 min-w-0 flex-col">
+          <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
             {loadingMessages ? (
               <div className="flex h-full items-center justify-center text-muted-foreground">
                 <Loader2 className="size-5 animate-spin" />
@@ -299,7 +299,7 @@ export function AiChatView({
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setListOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-border bg-card">
+          <div className="absolute inset-y-0 left-0 flex w-[85vw] max-w-72 flex-col border-r border-border bg-card pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
             <div className="flex items-center justify-between border-b border-border px-3 py-2">
               <span className="flex items-center gap-2 text-sm font-semibold">
                 <Sparkles className="size-4 text-primary" /> Suhbatlar

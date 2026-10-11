@@ -1,7 +1,10 @@
 import "server-only";
 
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
+import { param, queryPage, type ListParams } from "@/lib/pagination";
+import { HOUSING_TYPES, HOUSING_AMENITIES } from "@/features/housing/schema";
 
 export interface ListingCardData {
   id: string;
@@ -90,36 +93,56 @@ function toCard(row: ListingRow, userId: string): ListingCardData {
   };
 }
 
-export async function getListings(): Promise<ListingCardData[]> {
+export async function getListings(params: ListParams = {}) {
   const { userId } = await verifySession();
-
-  const rows = await prisma.housingListing.findMany({
-    where: { status: { not: "ARCHIVED" } },
-    orderBy: { createdAt: "desc" },
-    take: 300,
-    include: {
-      ...cardInclude,
-      favorites: { where: { userId }, select: { id: true } },
-    },
-  });
-
-  return rows.map((row) => toCard(row, userId));
+  const conditions = [Prisma.sql`h."status" <> 'ARCHIVED'`];
+  const q = param(params, "q");
+  const type = param(params, "type");
+  const rooms = param(params, "rooms");
+  const city = param(params, "city");
+  const convertedPrice = Prisma.sql`(h."price"::double precision * CASE WHEN h."currency" = 'USD' THEN 12600 ELSE 1 END)`;
+  if (q) conditions.push(Prisma.sql`POSITION(LOWER(${q}) IN LOWER(CONCAT_WS(' ', h."title", h."city", h."district", h."address"))) > 0`);
+  if ((HOUSING_TYPES as readonly string[]).includes(type)) conditions.push(Prisma.sql`h."type" = ${type}`);
+  if (/^[1-5]$/.test(rooms)) conditions.push(rooms === "5" ? Prisma.sql`h."rooms" >= 5` : Prisma.sql`h."rooms" = ${Number(rooms)}`);
+  if (city) conditions.push(Prisma.sql`h."city" = ${city}`);
+  for (const key of ["min", "max"] as const) {
+    const value = param(params, key);
+    const number = Number(value);
+    if (value && Number.isFinite(number) && number >= 0) conditions.push(key === "min" ? Prisma.sql`${convertedPrice} >= ${number}` : Prisma.sql`${convertedPrice} <= ${number}`);
+  }
+  const rawAmenities = params.amenity;
+  const amenities = (Array.isArray(rawAmenities) ? rawAmenities : typeof rawAmenities === "string" ? [rawAmenities] : []).filter((value) => (HOUSING_AMENITIES as readonly string[]).includes(value));
+  for (const amenity of amenities) conditions.push(Prisma.sql`${amenity} = ANY(h."amenities")`);
+  if (param(params, "tab") === "saved") conditions.push(Prisma.sql`EXISTS(SELECT 1 FROM "HousingFavorite" f WHERE f."listingId" = h."id" AND f."userId" = ${userId})`);
+  const sort = param(params, "sort", "new");
+  let order = Prisma.sql`h."createdAt" DESC, h."id" DESC`;
+  if (sort === "price-asc") order = Prisma.sql`${convertedPrice} ASC, h."id" ASC`;
+  if (sort === "price-desc") order = Prisma.sql`${convertedPrice} DESC, h."id" DESC`;
+  const lat = Number(param(params, "lat"));
+  const lng = Number(param(params, "lng"));
+  if (sort === "distance" && param(params, "lat") && param(params, "lng") && Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+    order = Prisma.sql`ACOS(LEAST(1.0, GREATEST(-1.0, SIN(RADIANS(${lat}::double precision)) * SIN(RADIANS(h."lat")) + COS(RADIANS(${lat}::double precision)) * COS(RADIANS(h."lat")) * COS(RADIANS(h."lng" - ${lng}::double precision))))) ASC, h."id" ASC`;
+  }
+  const where = Prisma.join(conditions, " AND ");
+  const [result, cities] = await Promise.all([
+    queryPage(params.page,
+      async () => Number((await prisma.$queryRaw<{ total: bigint }[]>(Prisma.sql`SELECT COUNT(*) AS total FROM "HousingListing" h WHERE ${where}`))[0]?.total ?? 0),
+      async ({ skip, take }) => {
+        const ids = await prisma.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT h."id" FROM "HousingListing" h WHERE ${where} ORDER BY ${order} OFFSET ${skip} LIMIT ${take}`);
+        const rows = await prisma.housingListing.findMany({
+          where: { id: { in: ids.map((row) => row.id) } },
+          include: { ...cardInclude, images: { ...cardInclude.images, take: 1 }, favorites: { where: { userId }, select: { id: true } } },
+        });
+        const lookup = new Map(rows.map((row) => [row.id, row]));
+        return ids.flatMap(({ id }) => { const row = lookup.get(id); return row ? [toCard(row, userId)] : []; });
+      }),
+    prisma.housingListing.groupBy({ by: ["city"], where: { status: { not: "ARCHIVED" } }, orderBy: { city: "asc" } }),
+  ]);
+  return { ...result, cities: cities.map((row) => row.city) };
 }
 
-export async function getSavedListings(): Promise<ListingCardData[]> {
-  const { userId } = await verifySession();
-
-  const rows = await prisma.housingListing.findMany({
-    where: { favorites: { some: { userId } } },
-    orderBy: { createdAt: "desc" },
-    take: 300,
-    include: {
-      ...cardInclude,
-      favorites: { where: { userId }, select: { id: true } },
-    },
-  });
-
-  return rows.map((row) => ({ ...toCard(row, userId), isFavorite: true }));
+export async function getSavedListings(params: ListParams = {}) {
+  return getListings({ ...params, tab: "saved" });
 }
 
 export async function getListing(id: string): Promise<ListingDetailData | null> {

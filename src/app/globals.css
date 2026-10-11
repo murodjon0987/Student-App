@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../");
 
 @custom-variant dark (&:is(.dark *));
 
@@ -113,6 +113,24 @@
     color: var(--foreground);
     font-family: var(--font-geist-sans), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
+    overflow-wrap: anywhere;
+  }
+
+  input, textarea, select {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  img, video, canvas {
+    max-width: 100%;
+  }
+
+  pre {
+    overflow-wrap: normal;
+  }
+
+  .app-content :where(.grid > *, .flex > *) {
+    min-width: 0;
   }
 
   ::-webkit-scrollbar {
@@ -128,6 +146,13 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     background: color-mix(in oklab, var(--muted-foreground) 50%, transparent);
+  }
+}
+
+@media (max-width: 639px) {
+  /* Keep iOS from zooming the layout when a form field gains focus. */
+  input:not([type="checkbox"]):not([type="radio"]), textarea, select {
+    font-size: 16px;
   }
 }
 

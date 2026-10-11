@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import { decrypt, getSessionToken } from "@/lib/auth/session";
+import { getAuthenticatedSession } from "@/lib/auth/session";
+import { detectRasterImageMime } from "@/lib/image";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +8,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await decrypt(await getSessionToken());
+  const session = await getAuthenticatedSession();
   if (!session?.userId) {
     return new Response("Unauthorized", { status: 401 });
   }
@@ -16,17 +17,24 @@ export async function GET(
 
   const image = await prisma.housingImage.findUnique({
     where: { id },
-    select: { data: true, mimeType: true },
+    select: { data: true },
   });
 
   if (!image) {
     return new Response("Not found", { status: 404 });
   }
 
-  return new Response(new Uint8Array(image.data), {
+  const data = new Uint8Array(image.data);
+  const mimeType = detectRasterImageMime(data);
+  if (!mimeType) {
+    return new Response("Not found", { status: 404 });
+  }
+
+  return new Response(data, {
     headers: {
-      "Content-Type": image.mimeType,
-      "Cache-Control": "private, max-age=31536000, immutable",
+      "Content-Type": mimeType,
+      "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

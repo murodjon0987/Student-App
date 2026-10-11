@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Plus, Trash2, MapPin, User, Clock } from "lucide-react";
 import { toast } from "sonner";
 
@@ -70,6 +71,7 @@ export function ScheduleView({ schedule, subjects }: Props) {
         title="Dars jadvali"
         description="Haftalik darslaringizni boshqaring."
       >
+        <Button variant="outline" asChild><Link href="/schedule/import">Jadval importi</Link></Button>
         <Button onClick={openCreate}>
           <Plus className="size-4" /> Dars qo'shish
         </Button>

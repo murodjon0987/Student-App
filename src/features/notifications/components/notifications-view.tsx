@@ -29,6 +29,8 @@ import type { NotificationItem } from "@/features/notifications/queries";
 
 interface Props {
   notifications: NotificationItem[];
+  filters: React.ReactNode;
+  unreadCount: number;
 }
 
 const TYPE_CONFIG: Record<
@@ -57,7 +59,7 @@ const TYPE_CONFIG: Record<
   },
 };
 
-export function NotificationsView({ notifications }: Props) {
+export function NotificationsView({ notifications, filters, unreadCount }: Props) {
   const router = useRouter();
   const [pendingId, setPendingId] = React.useState<string | null>(null);
   const [markingAll, setMarkingAll] = React.useState(false);
@@ -197,11 +199,13 @@ export function NotificationsView({ notifications }: Props) {
         <Button
           variant="outline"
           onClick={handleMarkAll}
-          disabled={markingAll || unread.length === 0}
+          disabled={markingAll || unreadCount === 0}
         >
           <CheckCheck className="size-4" /> Barchasini o'qilgan deb belgilash
         </Button>
       </PageHeader>
+
+      {filters}
 
       {notifications.length === 0 ? (
         <EmptyState
@@ -214,7 +218,7 @@ export function NotificationsView({ notifications }: Props) {
           {unread.length > 0 && (
             <section className="space-y-2">
               <h2 className="text-sm font-semibold">
-                O'qilmagan ({unread.length})
+                Bu sahifada o'qilmagan ({unread.length})
               </h2>
               {unread.map(renderItem)}
             </section>
@@ -223,7 +227,7 @@ export function NotificationsView({ notifications }: Props) {
           {read.length > 0 && (
             <section className="space-y-2">
               <h2 className="text-sm font-semibold text-muted-foreground">
-                O'qilgan ({read.length})
+                Bu sahifada o'qilgan ({read.length})
               </h2>
               {read.map(renderItem)}
             </section>

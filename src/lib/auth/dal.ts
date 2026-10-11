@@ -4,11 +4,10 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
-import { decrypt, getSessionToken } from "./session";
+import { getAuthenticatedSession } from "./session";
 
 export const verifySession = cache(async () => {
-  const token = await getSessionToken();
-  const session = await decrypt(token);
+  const session = await getAuthenticatedSession();
 
   if (!session?.userId) {
     redirect("/login");

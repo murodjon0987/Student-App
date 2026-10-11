@@ -1,6 +1,7 @@
 "use server";
 
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
+import { Prisma } from "@prisma/client";
 
 import { redirect } from "next/navigation";
 
@@ -14,6 +15,21 @@ import {
 } from "./definitions";
 import { hashPassword, verifyPassword } from "./password";
 import { createSession, deleteSession } from "./session";
+import { limitAuthRequest } from "@/lib/rate-limit";
+import { hashResetToken, safeNextPath } from "./security";
+import { isResetEmailConfigured, sendPasswordResetEmail } from "./email";
+import { completePasswordReset } from "./reset-password";
+
+const LIMIT_MESSAGE = "Juda ko'p urinish. Biroz kutib, qaytadan urinib ko'ring.";
+
+async function authRequestError(scope: string, identifier: string, limit?: number): Promise<AuthFormState> {
+  try {
+    return await limitAuthRequest(scope, identifier, limit) ? undefined : { message: LIMIT_MESSAGE };
+  } catch {
+    console.error(`[auth/${scope}] rate limit storage unavailable`);
+    return { message: "Xizmatga ulanib bo'lmadi. Keyinroq qaytadan urinib ko'ring." };
+  }
+}
 
 export async function register(
   _state: AuthFormState,
@@ -30,31 +46,46 @@ export async function register(
   }
 
   const { name, email, password } = validated.data;
+  const requestError = await authRequestError("register", email, 5);
+  if (requestError) return requestError;
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    return { errors: { email: ["Bu email allaqachon ro'yxatdan o'tgan"] } };
-  }
+  try {
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return { errors: { email: ["Bu email allaqachon ro'yxatdan o'tgan"] } };
+    }
 
-  const passwordHash = await hashPassword(password);
+    const passwordHash = await hashPassword(password);
 
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      passwordHash,
-      profile: { create: {} },
-      subjects: {
-        create: [
-          { name: "Matematika", teacher: "A. Karimov", color: "#6366f1" },
-          { name: "Dasturlash", teacher: "B. Yusupov", color: "#8b5cf6" },
-          { name: "Ingliz tili", teacher: "C. Smith", color: "#0ea5e9" },
-        ],
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        profile: { create: {} },
+        subjects: {
+          create: [
+            { name: "Matematika", teacher: "A. Karimov", color: "#6366f1" },
+            { name: "Dasturlash", teacher: "B. Yusupov", color: "#8b5cf6" },
+            { name: "Ingliz tili", teacher: "C. Smith", color: "#0ea5e9" },
+          ],
+        },
       },
-    },
-  });
+    });
 
-  await createSession(user.id);
+    try {
+      await createSession(user.id);
+    } catch {
+      console.error("[auth/register] session creation failed");
+      return { message: "Hisob yaratildi. Tizimga kirish sahifasidan qaytadan kiring." };
+    }
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return { errors: { email: ["Bu email allaqachon ro'yxatdan o'tgan"] } };
+    }
+    console.error("[auth/register] registration failed");
+    return { message: "Ro'yxatdan o'tishda xatolik. Keyinroq qaytadan urinib ko'ring." };
+  }
   redirect("/dashboard");
 }
 
@@ -72,35 +103,38 @@ export async function login(
   }
 
   const { email, password } = validated.data;
+  const requestError = await authRequestError("login", email);
+  if (requestError) return requestError;
 
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    return { message: "Email yoki parol noto'g'ri" };
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return { message: "Email yoki parol noto'g'ri" };
+    }
+
+    if (!user.passwordHash) {
+      return {
+        message:
+          "Bu hisob Google orqali yaratilgan. Iltimos, Google bilan kiring.",
+      };
+    }
+
+    const valid = await verifyPassword(password, user.passwordHash);
+    if (!valid) {
+      return { message: "Email yoki parol noto'g'ri" };
+    }
+
+    await createSession(user.id, user.sessionVersion);
+  } catch {
+    console.error("[auth/login] sign in failed");
+    return { message: "Tizimga kirishda xatolik. Qaytadan urinib ko'ring." };
   }
-
-  if (!user.passwordHash) {
-    return {
-      message:
-        "Bu hisob Google orqali yaratilgan. Iltimos, Google bilan kiring.",
-    };
-  }
-
-  const valid = await verifyPassword(password, user.passwordHash);
-  if (!valid) {
-    return { message: "Email yoki parol noto'g'ri" };
-  }
-
-  await createSession(user.id);
-  redirect("/dashboard");
+  redirect(safeNextPath(formData.get("next")));
 }
 
 export async function logout() {
   await deleteSession();
   redirect("/login");
-}
-
-function hashToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
 }
 
 export async function forgotPassword(
@@ -116,32 +150,37 @@ export async function forgotPassword(
   }
 
   const { email } = validated.data;
-  const user = await prisma.user.findUnique({ where: { email } });
-
-  // Email mavjudligini oshkor qilmaymiz.
-  if (!user) {
-    return {
-      success: true,
-      message: "Agar bu email ro'yxatdan o'tgan bo'lsa, tiklash havolasi yuboriladi.",
-    };
+  const requestError = await authRequestError("forgot-password", email, 3);
+  if (requestError) return requestError;
+  if (!isResetEmailConfigured()) {
+    return { message: "Email orqali parol tiklash hozircha mavjud emas. Administrator bilan bog'laning." };
   }
 
-  const token = randomBytes(32).toString("hex");
-  await prisma.passwordResetToken.create({
-    data: {
-      userId: user.id,
-      tokenHash: hashToken(token),
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-    },
-  });
-
-  const resetUrl = `/reset-password?token=${token}`;
-
-  // Email xizmati ulanmagani uchun havolani qaytaramiz (dev rejim).
+  // Return the same response for known/unknown accounts and delivery failures.
+  try {
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (user) {
+      const token = randomBytes(32).toString("hex");
+      const record = await prisma.passwordResetToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashResetToken(token),
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+      try {
+        await sendPasswordResetEmail(email, token, record.id);
+      } catch {
+        await prisma.passwordResetToken.deleteMany({ where: { id: record.id } });
+        console.error("[auth/forgot-password] email delivery failed");
+      }
+    }
+  } catch {
+    console.error("[auth/forgot-password] recovery request failed");
+  }
   return {
     success: true,
-    message: "Tiklash havolasi tayyor.",
-    errors: { __debug: [resetUrl] },
+    message: "Agar bu email ro'yxatdan o'tgan bo'lsa, tiklash havolasi yuboriladi. Email va spam papkasini tekshiring.",
   };
 }
 
@@ -159,27 +198,17 @@ export async function resetPassword(
   }
 
   const { token, password } = validated.data;
-
-  const record = await prisma.passwordResetToken.findUnique({
-    where: { tokenHash: hashToken(token) },
-  });
-
-  if (!record || record.usedAt || record.expiresAt < new Date()) {
-    return { message: "Havola yaroqsiz yoki muddati o'tgan." };
+  const requestError = await authRequestError("reset-password", token);
+  if (requestError) return requestError;
+  try {
+    const passwordHash = await hashPassword(password);
+    if (!await completePasswordReset(token, passwordHash)) {
+      return { message: "Havola yaroqsiz yoki muddati o'tgan." };
+    }
+  } catch {
+    console.error("[auth/reset-password] password reset failed");
+    return { message: "Parolni yangilashda xatolik. Keyinroq qaytadan urinib ko'ring." };
   }
-
-  const passwordHash = await hashPassword(password);
-
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: record.userId },
-      data: { passwordHash },
-    }),
-    prisma.passwordResetToken.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
-    }),
-  ]);
-
+  await deleteSession();
   redirect("/login?reset=1");
 }

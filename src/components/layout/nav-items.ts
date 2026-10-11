@@ -1,8 +1,11 @@
 import {
   BarChart3,
+  BookOpenCheck,
+  BriefcaseBusiness,
   Bell,
   Building2,
   Bus,
+  CalendarCheck,
   CalendarDays,
   CalendarRange,
   Calculator,
@@ -18,6 +21,7 @@ import {
   Target,
   Timer,
   User,
+  Users,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -39,7 +43,9 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Asosiy",
     items: [
       { href: "/dashboard", label: "Bosh sahifa", icon: LayoutDashboard, mobile: true },
+      { href: "/groups", label: "Guruhim", icon: Users },
       { href: "/schedule", label: "Dars jadvali", icon: CalendarDays, mobile: true },
+      { href: "/attendance", label: "Davomat", icon: CalendarCheck },
       { href: "/homework", label: "Vazifalar", icon: ClipboardList, mobile: true },
       { href: "/tasks", label: "Todo", icon: CheckSquare, mobile: true },
       { href: "/notes", label: "Eslatmalar", icon: StickyNote },
@@ -55,7 +61,10 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "O'qish",
     items: [
       { href: "/ai", label: "AI yordamchi", icon: Sparkles },
+      { href: "/learn", label: "Test va kartochkalar", icon: BookOpenCheck },
       { href: "/exams", label: "Imtihonlar", icon: GraduationCap },
+      { href: "/study-plans", label: "Tayyorgarlik rejasi", icon: CalendarRange },
+      { href: "/opportunities", label: "Imkoniyatlar", icon: BriefcaseBusiness },
       { href: "/goals", label: "Maqsadlar", icon: Target },
       { href: "/focus", label: "Focus rejim", icon: Timer, mobile: true },
       { href: "/analytics", label: "Tahlillar", icon: BarChart3 },

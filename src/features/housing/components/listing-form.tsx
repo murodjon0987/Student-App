@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
+import { RASTER_IMAGE_MIME_TYPES } from "@/lib/image";
 import {
   deleteListingImage,
   saveListing,
@@ -69,7 +70,8 @@ interface Props {
 
 export function ListingForm({ initial }: Props) {
   const router = useRouter();
-  const isEdit = Boolean(initial);
+  const [savedListingId, setSavedListingId] = React.useState(initial?.id);
+  const isEdit = Boolean(savedListingId);
 
   const {
     register,
@@ -115,6 +117,7 @@ export function ListingForm({ initial }: Props) {
     initial?.images ?? []
   );
   const [imageBusy, setImageBusy] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState<string | null>(null);
 
   const previews = React.useMemo(
     () => pendingFiles.map((file) => URL.createObjectURL(file)),
@@ -153,7 +156,16 @@ export function ListingForm({ initial }: Props) {
   function onFilesSelected(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) return;
-    setPendingFiles((prev) => [...prev, ...files].slice(0, 10));
+    const allowedFiles = files.filter((file) =>
+      (RASTER_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)
+    );
+    if (allowedFiles.length !== files.length) {
+      toast.error("Faqat JPEG, PNG, GIF yoki WebP rasmlarini tanlang");
+    }
+    if (allowedFiles.length > 10 - existingImages.length - pendingFiles.length) {
+      toast.error("Ko'pi bilan 10 ta rasm qo'shish mumkin");
+    }
+    setPendingFiles((prev) => [...prev, ...allowedFiles].slice(0, Math.max(0, 10 - existingImages.length)));
     event.target.value = "";
   }
 
@@ -163,41 +175,73 @@ export function ListingForm({ initial }: Props) {
 
   async function removeExisting(imageId: string) {
     setImageBusy(true);
-    const result = await deleteListingImage(imageId);
-    setImageBusy(false);
-    if (!result.success) {
-      toast.error(result.error);
-      return;
+    try {
+      const result = await deleteListingImage(imageId);
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      setExistingImages((prev) => prev.filter((id) => id !== imageId));
+      toast.success("Rasm o'chirildi");
+    } catch {
+      toast.error("Rasmni o'chirishda xatolik. Qaytadan urinib ko'ring.");
+    } finally {
+      setImageBusy(false);
     }
-    setExistingImages((prev) => prev.filter((id) => id !== imageId));
-    toast.success("Rasm o'chirildi");
   }
 
   async function onSubmit(values: HousingInput) {
-    const result = await saveListing({ ...values, id: initial?.id });
-    if (!result.success) {
-      toast.error(result.error);
-      return;
-    }
-
-    const listingId = result.data.id;
-
-    if (pendingFiles.length > 0) {
-      setImageBusy(true);
-      for (const file of pendingFiles) {
-        const compressed = await compressImage(file);
-        const formData = new FormData();
-        formData.append("listingId", listingId);
-        formData.append("file", compressed);
-        const uploaded = await uploadListingImage(formData);
-        if (!uploaded.success) toast.error(uploaded.error);
+    setUploadError(null);
+    try {
+      const result = await saveListing({ ...values, id: savedListingId ?? values.id });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
       }
+
+      const listingId = result.data.id;
+      // Keep the saved ID for retries after a partial upload failure.
+      setSavedListingId(listingId);
+      setValue("id", listingId);
+
+      if (pendingFiles.length > 0) {
+        setImageBusy(true);
+        const failedFiles: File[] = [];
+        let failureMessage = "Rasmni yuklashda xatolik";
+        for (const file of pendingFiles) {
+          try {
+            const compressed = await compressImage(file);
+            const formData = new FormData();
+            formData.append("listingId", listingId);
+            formData.append("file", compressed);
+            const uploaded = await uploadListingImage(formData);
+            if (!uploaded.success) {
+              failedFiles.push(file);
+              failureMessage = uploaded.error;
+            } else {
+              setExistingImages((prev) => [...prev, uploaded.data.id]);
+            }
+          } catch {
+            failedFiles.push(file);
+          }
+        }
+        setPendingFiles(failedFiles);
+        if (failedFiles.length > 0) {
+          const message = `E'lon saqlandi, lekin ${failedFiles.length} ta rasm yuklanmadi. ${failureMessage}. Qayta saqlang yoki yuklanmagan rasmlarni olib tashlang.`;
+          setUploadError(message);
+          toast.error(message);
+          return;
+        }
+      }
+
+      toast.success(isEdit ? "E'lon yangilandi" : "E'lon joylashtirildi");
+      router.push(`/housing/${listingId}`);
+      router.refresh();
+    } catch {
+      toast.error("E'lonni saqlashda xatolik. Qaytadan urinib ko'ring.");
+    } finally {
       setImageBusy(false);
     }
-
-    toast.success(isEdit ? "E'lon yangilandi" : "E'lon joylashtirildi");
-    router.push(`/housing/${listingId}`);
-    router.refresh();
   }
 
   const totalImages = existingImages.length + pendingFiles.length;
@@ -210,6 +254,7 @@ export function ListingForm({ initial }: Props) {
       />
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {uploadError && <p role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">{uploadError}</p>}
         <div className="space-y-4 rounded-xl border border-border bg-card p-4">
           <div className="space-y-2">
             <Label htmlFor="title">Sarlavha</Label>
@@ -461,7 +506,7 @@ export function ListingForm({ initial }: Props) {
                 />
                 <button
                   type="button"
-                  disabled={imageBusy}
+                  disabled={imageBusy || isSubmitting}
                   onClick={() => removeExisting(imageId)}
                   className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
                   aria-label="O'chirish"
@@ -480,6 +525,7 @@ export function ListingForm({ initial }: Props) {
                 <img src={url} alt="Yangi rasm" className="size-full object-cover" />
                 <button
                   type="button"
+                  disabled={imageBusy || isSubmitting}
                   onClick={() => removePending(index)}
                   className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-black/60 text-white"
                   aria-label="O'chirish"
@@ -499,8 +545,9 @@ export function ListingForm({ initial }: Props) {
                 <span className="text-[11px]">Qo&apos;shish</span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept={RASTER_IMAGE_MIME_TYPES.join(",")}
                   multiple
+                  disabled={imageBusy || isSubmitting}
                   className="hidden"
                   onChange={onFilesSelected}
                 />
@@ -539,6 +586,7 @@ export function ListingForm({ initial }: Props) {
             <Button
               type="button"
               variant="outline"
+              disabled={imageBusy || isSubmitting}
               onClick={() => router.back()}
             >
               Bekor qilish

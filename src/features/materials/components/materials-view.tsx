@@ -7,15 +7,12 @@ import {
   FolderOpen,
   Pencil,
   Plus,
-  Search,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -28,6 +25,7 @@ import {
 
 interface Props {
   materials: MaterialItem[];
+  filters: React.ReactNode;
   subjects: { id: string; name: string }[];
 }
 
@@ -35,28 +33,15 @@ function categoryLabel(value: string) {
   return MATERIAL_CATEGORIES.find((c) => c.value === value)?.label ?? value;
 }
 
-export function MaterialsView({ materials, subjects }: Props) {
+export function MaterialsView({ materials, subjects, filters }: Props) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<MaterialItem | null>(null);
-  const [categoryFilter, setCategoryFilter] = React.useState("ALL");
-  const [search, setSearch] = React.useState("");
 
   const subjectName = (id: string | null) =>
     subjects.find((s) => s.id === id)?.name ?? null;
 
-  const filtered = React.useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return materials
-      .filter((m) => (categoryFilter === "ALL" ? true : m.category === categoryFilter))
-      .filter((m) => {
-        if (!query) return true;
-        return (
-          m.title.toLowerCase().includes(query) ||
-          (m.description ?? "").toLowerCase().includes(query)
-        );
-      });
-  }, [materials, categoryFilter, search]);
+  const filtered = materials;
 
   function openCreate() {
     setEditing(null);
@@ -79,30 +64,7 @@ export function MaterialsView({ materials, subjects }: Props) {
         </Button>
       </PageHeader>
 
-      <div className="space-y-3">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Qidirish..."
-            className="pl-9"
-          />
-        </div>
-
-        <div className="overflow-x-auto">
-          <Tabs value={categoryFilter} onValueChange={setCategoryFilter}>
-            <TabsList>
-              <TabsTrigger value="ALL">Barchasi</TabsTrigger>
-              {MATERIAL_CATEGORIES.map((c) => (
-                <TabsTrigger key={c.value} value={c.value}>
-                  {c.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-      </div>
+      {filters}
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -141,7 +103,7 @@ export function MaterialsView({ materials, subjects }: Props) {
                 )}
               </div>
 
-              <div className="mt-auto flex items-center justify-between gap-2 pt-4">
+              <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
                 {material.url ? (
                   <Button variant="outline" size="sm" asChild>
                     <a

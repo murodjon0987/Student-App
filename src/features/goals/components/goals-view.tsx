@@ -53,6 +53,7 @@ export interface GoalWithTasks extends GoalItem {
 
 interface Props {
   goals: GoalWithTasks[];
+  filters: React.ReactNode;
 }
 
 function GoalCard({
@@ -109,14 +110,14 @@ function GoalCard({
 
   return (
     <Card className="transition-colors hover:border-primary/30">
-      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+      <CardHeader className="flex flex-col items-start justify-between gap-3 space-y-0 sm:flex-row">
         <div className="min-w-0" style={{ color: goal.color }}>
           <div className="flex flex-wrap items-center gap-2">
             <span
               className="size-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: goal.color }}
             />
-            <CardTitle className="truncate text-foreground">
+            <CardTitle className="text-foreground sm:truncate">
               {goal.title}
             </CardTitle>
           </div>
@@ -132,7 +133,7 @@ function GoalCard({
             </p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1 self-end sm:self-start">
           <Button variant="ghost" size="icon-sm" onClick={() => onEdit(goal)}>
             <Pencil className="size-4" />
           </Button>
@@ -181,7 +182,7 @@ function GoalCard({
               />
               <span
                 className={cn(
-                  "min-w-0 flex-1 truncate text-sm",
+                  "min-w-0 flex-1 text-sm sm:truncate",
                   task.done && "text-muted-foreground line-through"
                 )}
               >
@@ -232,7 +233,7 @@ function GoalCard({
   );
 }
 
-export function GoalsView({ goals }: Props) {
+export function GoalsView({ goals, filters }: Props) {
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<GoalItem | null>(null);
 
@@ -256,6 +257,8 @@ export function GoalsView({ goals }: Props) {
           <Plus className="size-4" /> Maqsad qo'shish
         </Button>
       </PageHeader>
+
+      {filters}
 
       {goals.length === 0 ? (
         <EmptyState

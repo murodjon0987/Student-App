@@ -1,16 +1,11 @@
 import "server-only";
 
-import {
-  endOfDay,
-  endOfMonth,
-  endOfWeek,
-  startOfDay,
-  startOfMonth,
-  startOfWeek,
-} from "date-fns";
+import { appDateParts, dayRange, weekRange, monthRange, monthKey } from "@/lib/date";
+import { formatTime } from "@/lib/format";
 
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
+import { summarizeAttendance } from "@/features/attendance/queries";
 
 function jsWeekdayToApp(day: number) {
   return day === 0 ? 7 : day;
@@ -19,16 +14,20 @@ function jsWeekdayToApp(day: number) {
 export async function getDashboardData() {
   const { userId } = await verifySession();
   const now = new Date();
-  const today = jsWeekdayToApp(now.getDay());
+  const today = jsWeekdayToApp(appDateParts(now).weekday);
+  const day = dayRange(now), week = weekRange(now), month = monthRange(monthKey(now));
 
   const [
     todaySchedule,
-    tasks,
-    homeworks,
+    todayTasks,
+    taskDeadlines,
+    homeworkDeadlines,
+    homeworkGroups,
+    attendanceGroups,
     goals,
     studyToday,
     studyWeek,
-    grades,
+    gradeGroups,
     expenses,
     budget,
     profile,
@@ -40,21 +39,41 @@ export async function getDashboardData() {
     prisma.task.findMany({
       where: { userId, status: { not: "COMPLETED" } },
       orderBy: [{ deadline: "asc" }, { createdAt: "desc" }],
+      take: 5,
+      select: { id: true, title: true, priority: true, deadline: true },
+    }),
+    prisma.task.findMany({
+      where: { userId, status: { not: "COMPLETED" }, deadline: { not: null } },
+      orderBy: { deadline: "asc" },
+      take: 8,
+      select: { id: true, title: true, deadline: true },
     }),
     prisma.homework.findMany({
-      where: { userId },
+      where: { userId, status: { not: "COMPLETED" }, deadline: { not: null } },
       orderBy: { deadline: "asc" },
+      take: 8,
+      select: { id: true, title: true, deadline: true },
+    }),
+    prisma.homework.groupBy({
+      by: ["status"],
+      where: { userId },
+      _count: { _all: true },
+    }),
+    prisma.attendance.groupBy({
+      by: ["status"],
+      where: { userId },
+      _count: { _all: true },
     }),
     prisma.goal.findMany({
       where: { userId },
-      include: { tasks: true },
+      include: { tasks: { select: { done: true } } },
       orderBy: { createdAt: "desc" },
       take: 4,
     }),
     prisma.studySession.aggregate({
       where: {
         userId,
-        startedAt: { gte: startOfDay(now), lte: endOfDay(now) },
+        startedAt: { gte: day.start, lte: day.end },
       },
       _sum: { durationMin: true },
     }),
@@ -62,17 +81,22 @@ export async function getDashboardData() {
       where: {
         userId,
         startedAt: {
-          gte: startOfWeek(now, { weekStartsOn: 1 }),
-          lte: endOfWeek(now, { weekStartsOn: 1 }),
+          gte: week.start,
+          lte: week.end,
         },
       },
       _sum: { durationMin: true },
     }),
-    prisma.grade.findMany({ where: { userId } }),
+    prisma.grade.groupBy({
+      by: ["grade"],
+      where: { userId },
+      _sum: { credit: true },
+      _count: { _all: true },
+    }),
     prisma.expense.aggregate({
       where: {
         userId,
-        date: { gte: startOfMonth(now), lte: endOfMonth(now) },
+        date: { gte: month.start, lte: month.end },
       },
       _sum: { amount: true },
     }),
@@ -80,23 +104,34 @@ export async function getDashboardData() {
       where: {
         userId_month: {
           userId,
-          month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+          month: monthKey(now),
         },
       },
     }),
     prisma.studentProfile.findUnique({ where: { userId } }),
   ]);
 
-  const gpa =
-    grades.length > 0
-      ? grades.reduce((sum, g) => sum + Number(g.grade) * g.credit, 0) /
-        grades.reduce((sum, g) => sum + g.credit, 0)
-      : 0;
+  let gradeCredits = 0;
+  let gradeWeighted = 0;
+  for (const group of gradeGroups) {
+    const value = Number(group.grade);
+    if (!Number.isFinite(value)) continue;
+    const credit = group._sum.credit ?? 0;
+    gradeCredits += credit;
+    gradeWeighted += value * credit;
+  }
+  const gpa = gradeCredits > 0 ? gradeWeighted / gradeCredits : 0;
 
-  const totalHomework = homeworks.length;
-  const completedHomework = homeworks.filter(
-    (h) => h.status === "COMPLETED"
-  ).length;
+  let homeworkTotal = 0;
+  let homeworkCompleted = 0;
+  for (const group of homeworkGroups) {
+    homeworkTotal += group._count._all;
+    if (group.status === "COMPLETED") homeworkCompleted += group._count._all;
+  }
+  const homeworkCompletion =
+    homeworkTotal > 0 ? Math.round((homeworkCompleted / homeworkTotal) * 100) : 100;
+
+  const attendance = summarizeAttendance(attendanceGroups);
 
   const goalsWithProgress = goals.map((goal) => {
     const total = goal.tasks.length;
@@ -110,33 +145,25 @@ export async function getDashboardData() {
   });
 
   const upcomingDeadlines = [
-    ...tasks
-      .filter((t) => t.deadline)
-      .map((t) => ({
-        id: t.id,
-        title: t.title,
-        type: "TASK" as const,
-        deadline: t.deadline as Date,
-        href: "/tasks",
-      })),
-    ...homeworks
-      .filter((h) => h.deadline && h.status !== "COMPLETED")
-      .map((h) => ({
-        id: h.id,
-        title: h.title,
-        type: "HOMEWORK" as const,
-        deadline: h.deadline as Date,
-        href: "/homework",
-      })),
+    ...taskDeadlines.map((t) => ({
+      id: t.id,
+      title: t.title,
+      type: "TASK" as const,
+      deadline: t.deadline as Date,
+      href: "/tasks",
+    })),
+    ...homeworkDeadlines.map((h) => ({
+      id: h.id,
+      title: h.title,
+      type: "HOMEWORK" as const,
+      deadline: h.deadline as Date,
+      href: "/homework",
+    })),
   ]
     .sort((a, b) => a.deadline.getTime() - b.deadline.getTime())
     .slice(0, 5);
 
-  const todayTasks = tasks.slice(0, 5);
-
-  const nowHHmm = `${String(now.getHours()).padStart(2, "0")}:${String(
-    now.getMinutes()
-  ).padStart(2, "0")}`;
+  const nowHHmm = formatTime(now);
 
   const nextClass =
     todaySchedule.find((item) => item.startTime > nowHHmm) ?? null;
@@ -149,9 +176,12 @@ export async function getDashboardData() {
     studyMinutesToday: studyToday._sum.durationMin ?? 0,
     studyMinutesWeek: studyWeek._sum.durationMin ?? 0,
     gpa,
-    attendance: totalHomework > 0 ? Math.round((completedHomework / totalHomework) * 100) : 100,
-    completedHomework,
-    totalHomework,
+    homeworkCompletion,
+    homeworkCompleted,
+    homeworkTotal,
+    attendanceRate: attendance.total > 0 ? attendance.rate : null,
+    attendanceTotal: attendance.total,
+    attendanceMissed: attendance.missed,
     monthlyExpense: expenses._sum.amount ?? 0,
     monthlyBudget: budget?.amount ?? profile?.monthlyBudget ?? 0,
     goals: goalsWithProgress,

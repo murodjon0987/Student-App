@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Timer } from "lucide-react";
+import { localDateKey, parseAcademicDateTime } from "@/lib/date";
 
 function diff(target: Date) {
   const total = Math.max(0, Math.floor((target.getTime() - Date.now()) / 1000));
@@ -35,9 +36,7 @@ export function NextClassCountdown({
   } | null>(null);
 
   React.useEffect(() => {
-    const [h, m] = startTime.split(":").map(Number);
-    const target = new Date();
-    target.setHours(h, m, 0, 0);
+    const target = parseAcademicDateTime(`${localDateKey()}T${startTime}`);
     setState({ target, ...diff(target) });
 
     const timer = setInterval(() => {

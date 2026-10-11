@@ -1,6 +1,9 @@
 import "server-only";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { prisma } from "@/lib/prisma";
+import { readBodyBytes, readJsonBody } from "@/lib/http";
+import { detectRasterImageMime } from "@/lib/image";
 
 const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const POLLINATIONS_BASE = "https://image.pollinations.ai/prompt";
@@ -24,8 +27,8 @@ Qoidalar:
 - Agar foydalanuvchi matn/logo so'rasa, undagi yozuvni alohida ko'rsat.
 - Javobda FAQAT ingliz tilidagi prompt matnini qaytar. Boshqa izoh, kirish so'zi yoki qo'shtirnoq qo'shma.`;
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal) {
+  return delay(ms, undefined, { signal });
 }
 
 export function isImageGenerationConfigured() {
@@ -238,7 +241,7 @@ async function geminiGenerateText(
       }),
     });
     if (!res.ok) return null;
-    const json = (await res.json()) as {
+    const json = (await readJsonBody(res, 65_536)) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
     };
     const text = json.candidates?.[0]?.content?.parts
@@ -248,6 +251,7 @@ async function geminiGenerateText(
       .trim();
     return text && text.length > 2 ? text : null;
   } catch (error) {
+    signal?.throwIfAborted();
     if (error instanceof Error && error.name === "AbortError") throw error;
     return null;
   }
@@ -264,7 +268,7 @@ export async function enhanceImagePrompt(
     userText,
     IMAGE_PROMPT_SYSTEM,
     signal
-  ).catch(() => null);
+  );
 
   if (enhanced) {
     return enhanced.replace(/^["'`\s]+|["'`\s]+$/g, "").slice(0, 900);
@@ -289,6 +293,7 @@ async function generateViaGemini(
   if (!apiKey) return null;
 
   for (const model of GEMINI_IMAGE_MODELS) {
+    signal?.throwIfAborted();
     const url = `${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent`;
     let res: Response;
     try {
@@ -305,6 +310,7 @@ async function generateViaGemini(
         }),
       });
     } catch (error) {
+      signal?.throwIfAborted();
       if (error instanceof Error && error.name === "AbortError") throw error;
       continue;
     }
@@ -312,7 +318,7 @@ async function generateViaGemini(
     if (res.status === 404) continue; // model mavjud emas — keyingisini sinaymiz
     if (!res.ok) return null; // 429/403 (billing yo'q) — Pollinations'ga qaytamiz
 
-    const json = (await res.json()) as {
+    const json = (await readJsonBody(res, 12_000_000)) as {
       candidates?: {
         content?: {
           parts?: { inlineData?: { data?: string; mimeType?: string } }[];
@@ -323,9 +329,12 @@ async function generateViaGemini(
       (item) => item.inlineData?.data
     );
     if (part?.inlineData?.data) {
+      const data = Buffer.from(part.inlineData.data, "base64");
+      const mimeType = detectRasterImageMime(data);
+      if (!mimeType || data.byteLength > 8_000_000) throw new Error("Image service returned an invalid image");
       return {
-        data: Buffer.from(part.inlineData.data, "base64"),
-        mimeType: part.inlineData.mimeType || "image/png",
+        data,
+        mimeType,
       };
     }
     return null;
@@ -361,13 +370,14 @@ function buildPollinationsUrl(prompt: string, seed: number) {
 async function generateViaPollinations(
   prompt: string,
   signal?: AbortSignal
-): Promise<string> {
+): Promise<GeneratedBytes> {
   const seed = Math.floor(Math.random() * 1_000_000);
   const url = buildPollinationsUrl(prompt, seed);
   const maxAttempts = 3;
   let lastError = "Rasm generatsiya qilishda xatolik yuz berdi";
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    signal?.throwIfAborted();
     try {
       const res = await fetch(url, {
         signal,
@@ -376,24 +386,27 @@ async function generateViaPollinations(
       });
 
       if (res.ok && res.body) {
-        await res.arrayBuffer().catch(() => undefined);
-        return url;
+        const data = await readBodyBytes(res, 8_000_000);
+        const mimeType = detectRasterImageMime(data);
+        if (!mimeType) throw new Error("Image service returned an invalid image");
+        return { data, mimeType };
       }
 
       if (res.status === 402) {
         lastError =
           "Rasm xizmati band (bepul limit). Iltimos, birozdan so'ng qayta urinib ko'ring.";
-        if (attempt < maxAttempts) await sleep(16_000);
+        if (attempt < maxAttempts) await sleep(16_000, signal);
         continue;
       }
 
       lastError = `Rasm xizmati xatosi (${res.status})`;
     } catch (error) {
+      signal?.throwIfAborted();
       if (error instanceof Error && error.name === "AbortError") throw error;
       lastError = "Rasm xizmatiga ulanib bo'lmadi";
     }
 
-    if (attempt < maxAttempts) await sleep(1500 * attempt);
+    if (attempt < maxAttempts) await sleep(1500 * attempt, signal);
   }
 
   throw new Error(lastError);
@@ -406,8 +419,8 @@ export interface GeneratedImage {
 
 /**
  * Rasmni generatsiya qiladi. Avval Gemini (aniqroq, billing kerak), aks holda
- * Pollinations (bepul) ishlatiladi. Gemini rasmi bazaga saqlanadi va
- * ichki URL orqali beriladi.
+ * Pollinations (bepul) ishlatiladi. Har ikki provayder rasmi bazaga saqlanadi va
+ * faqat ichki URL orqali beriladi; provayder tokenlari serverda qoladi.
  */
 export async function generateImage(
   userId: string,
@@ -443,6 +456,10 @@ export async function generateImage(
     }
   }
 
-  const url = await generateViaPollinations(clean, signal);
-  return { url, prompt: clean };
+  const image = await generateViaPollinations(clean, signal);
+  const saved = await prisma.generatedImage.create({
+    data: { userId, mimeType: image.mimeType, data: new Uint8Array(image.data), prompt: clean, provider: "pollinations" },
+    select: { id: true },
+  });
+  return { url: `/api/ai/image/${saved.id}`, prompt: clean };
 }

@@ -6,10 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth/dal";
 import { fail, ok, type ActionResult } from "@/lib/types";
 import { eventSchema, type EventInput } from "./schema";
+import { parseAcademicDateTime } from "@/lib/date";
 
 function parseDate(value?: string | null) {
   if (!value) return null;
-  const date = new Date(value);
+  const date = parseAcademicDateTime(value);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -27,6 +28,10 @@ export async function saveEvent(
   const start = parseDate(data.start);
   if (!start) return fail("Boshlanish vaqti noto'g'ri");
   const end = parseDate(data.end);
+  if (data.end && !end) return fail("Tugash vaqti noto'g'ri");
+  if (end && end.getTime() < start.getTime()) {
+    return fail("Tugash vaqti boshlanishdan oldin bo'lishi mumkin emas");
+  }
 
   try {
     if (data.id) {
@@ -73,10 +78,10 @@ export async function saveEvent(
 export async function deleteEvent(id: string): Promise<ActionResult> {
   const { userId } = await verifySession();
 
-  const existing = await prisma.event.findFirst({ where: { id, userId } });
-  if (!existing) return fail("Tadbir topilmadi");
-
   try {
+    const existing = await prisma.event.findFirst({ where: { id, userId } });
+    if (!existing) return fail("Tadbir topilmadi");
+
     await prisma.event.delete({ where: { id } });
     revalidatePath("/", "layout");
     return ok();

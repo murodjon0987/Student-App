@@ -1,9 +1,26 @@
 /* Student App service worker: PWA yangilanish + web push bildirishnomalar. */
 
 const SW_VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
+const DEVELOPMENT = SW_VERSION === "dev" || ["localhost", "127.0.0.1", "[::1]"].includes(new URL(self.location.href).hostname);
+// New cache namespace also clears assets retained by the old broad image cache.
+const CACHE_NAME = `student-app-v2-${SW_VERSION}`;
+const OFFLINE_URL = "/offline.html";
 
-self.addEventListener("install", () => {
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    (async () => {
+      const response = await fetch(OFFLINE_URL, { cache: "reload" });
+      // A login redirect must never become the offline page.
+      if (!response.ok || response.redirected) {
+        throw new Error("Offline page could not be cached");
+      }
+      const cache = await caches.open(CACHE_NAME);
+      await cache.put(OFFLINE_URL, response);
+    })()
+  );
   // Yangilanishni kutamiz: foydalanuvchi tugmani bosgach SKIP_WAITING keladi.
+  // Development reuses asset URLs, so replace an older caching worker at once.
+  if (DEVELOPMENT) self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -13,7 +30,7 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(
         keys
-          .filter((key) => key.startsWith("student-app") && key !== `student-app-${SW_VERSION}`)
+          .filter((key) => key.startsWith("student-app-") && key !== CACHE_NAME)
           .map((key) => caches.delete(key))
       );
       await self.clients.claim();
@@ -29,6 +46,8 @@ self.addEventListener("message", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  // Local previews must use the browser's normal network path, including HMR.
+  if (DEVELOPMENT) return;
   const request = event.request;
   if (request.method !== "GET") return;
 
@@ -38,20 +57,22 @@ self.addEventListener("fetch", (event) => {
   // API so'rovlarini hech qachon keshlmaymiz.
   if (url.pathname.startsWith("/api/")) return;
 
-  // Statik va hash bilan nomlangan Next.js fayllari — cache-first (tez).
+  // Only public assets are shared between accounts. Private API images and
+  // optimized images must keep their normal authenticated network behavior.
   if (
-    url.pathname.startsWith("/_next/static/") ||
-    url.pathname.startsWith("/_next/image") ||
+    (!DEVELOPMENT && url.pathname.startsWith("/_next/static/")) ||
     url.pathname.startsWith("/icons/") ||
-    /\.(?:css|js|woff2?|png|jpg|jpeg|svg|webp|ico)$/.test(url.pathname)
+    ["/icon.svg", "/favicon.ico", "/apple-icon.png"].includes(url.pathname)
   ) {
     event.respondWith(
-      caches.open(`student-app-${SW_VERSION}`).then(async (cache) => {
+      caches.open(CACHE_NAME).then(async (cache) => {
         const cached = await cache.match(request);
         if (cached) return cached;
         try {
           const response = await fetch(request);
-          if (response.ok) cache.put(request, response.clone());
+          if (response.ok && !response.redirected) {
+            await cache.put(request, response.clone());
+          }
           return response;
         } catch (error) {
           const fallback = await cache.match(request);
@@ -63,14 +84,29 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Sahifalar/RSC — network-first: har doim yangi kontent, tarmoq yo'q bo'lsa kesh.
-  event.respondWith(fetch(request).catch(() => caches.match(request)));
+  // Personal pages are never cached. A document navigation can show a public
+  // offline page; RSC, API and other requests must not receive HTML in its place.
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        const cache = await caches.open(CACHE_NAME);
+        return (
+          (await cache.match(OFFLINE_URL)) ||
+          new Response("Internet aloqasi yo'q. Qayta urinib ko'ring.", {
+            status: 503,
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+          })
+        );
+      })
+    );
+  }
 });
 
 self.addEventListener("push", (event) => {
   let payload = {};
   try {
-    payload = event.data ? event.data.json() : {};
+    const data = event.data ? event.data.json() : {};
+    payload = data && typeof data === "object" ? data : {};
   } catch {
     payload = { body: event.data ? event.data.text() : "" };
   }
@@ -88,10 +124,21 @@ self.addEventListener("push", (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
+function getNotificationUrl(target) {
+  try {
+    const url = new URL(target, self.location.origin);
+    if (url.origin === self.location.origin) return url.href;
+  } catch {
+    // Invalid or external notification links use the app's default route.
+  }
+  return new URL("/dashboard", self.location.origin).href;
+}
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target =
-    (event.notification.data && event.notification.data.url) || "/dashboard";
+  const target = getNotificationUrl(
+    (event.notification.data && event.notification.data.url) || "/dashboard"
+  );
 
   event.waitUntil(
     (async () => {
@@ -100,11 +147,20 @@ self.addEventListener("notificationclick", (event) => {
         includeUncontrolled: true,
       });
 
-      for (const client of clientList) {
-        if (new URL(client.url).origin === self.location.origin) {
-          await client.focus();
-          client.postMessage({ type: "RELOAD" });
-          return;
+      const appClients = clientList.filter(
+        (client) => new URL(client.url).origin === self.location.origin
+      );
+      const client =
+        appClients.find((candidate) => candidate.url === target) || appClients[0];
+      if (client) {
+        try {
+          const navigated = await client.navigate(target);
+          if (navigated) {
+            await navigated.focus();
+            return;
+          }
+        } catch {
+          // A closed window can fail navigation; open a new one below.
         }
       }
 
