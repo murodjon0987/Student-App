@@ -314,10 +314,13 @@ bildirishnoma va push yuboriladi. Bajarilgan vazifalar chiqarib tashlanadi,
 har bir oyna faqat bir marta ishlaydi (takroriy yuborish bloklanadi) va yetkazish
 `ToolReminder` orqali atomik nazorat qilinadi.
 
-- `/api/cron/reminders` — har soatda (`vercel.json`) 1/24 soat oynalarini tekshiradi.
+- `/api/cron/reminders` — deadline eslatmalarini tekshiradi (qo'lda yoki Pro/soatlik rejimda).
 - `/api/cron/study` — kunlik vazifa; shuningdek deadline eslatmalarini ham chaqiradi.
-- `CRON_SECRET` bilan himoyalangan. Soatlik cron uchun hosting jadvalida
-  (`vercel.json` `crons`) kamida soatlik rejim kerak.
+- `CRON_SECRET` bilan himoyalangan. **Vercel Hobby** tarifi faqat kunlik cron'ga
+  ruxsat beradi, shu sabab `vercel.json`da soatlik `reminders` cron yo'q; 24/1 soat
+  oynalari kunlik `study` cron orqali ishlaydi. Soatlik aniqlik uchun Pro tarifga
+  o'ting yoki tashqi scheduler (masalan, cron-job.org) `/api/cron/reminders`ga
+  `Authorization: Bearer <CRON_SECRET>` bilan soatlik so'rov yuborsin.
 
 ### Fayl biriktirish
 
